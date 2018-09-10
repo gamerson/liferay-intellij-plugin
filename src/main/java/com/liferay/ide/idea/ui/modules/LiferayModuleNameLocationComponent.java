@@ -328,20 +328,9 @@ public class LiferayModuleNameLocationComponent {
 
 		String moduleName = _getModuleName();
 
-		Module module;
+		ModuleManager moduleManager = ModuleManager.getInstance(project);
 
-		ProjectStructureConfigurable fromConfigurable = ProjectStructureConfigurable.getInstance(project);
-
-		if (fromConfigurable != null) {
-			ModuleStructureConfigurable moduleStructureConfigurable = fromConfigurable.getModulesConfig();
-
-			module = moduleStructureConfigurable.getModule(moduleName);
-		}
-		else {
-			ModuleManager moduleManager = ModuleManager.getInstance(project);
-
-			module = moduleManager.findModuleByName(moduleName);
-		}
+		Module module = moduleManager.findModuleByName(moduleName);
 
 		if (module != null) {
 			String msg = "Module \'" + moduleName + "\' already exists in project. Please specify another name.";
@@ -360,19 +349,6 @@ public class LiferayModuleNameLocationComponent {
 
 		if (moduleName.length() == 0) {
 			throw new ConfigurationException("Enter a module name");
-		}
-
-		if (!ProjectWizardUtil.createDirectoryIfNotExists(
-				IdeBundle.message("directory.module.file"), moduleFileDirectory, _imlLocationChangedByUser)) {
-
-			return false;
-		}
-
-		if (!ProjectWizardUtil.createDirectoryIfNotExists(
-				IdeBundle.message("directory.module.content.root"), _moduleContentRoot.getText(),
-				_contentRootChangedByUser)) {
-
-			return false;
 		}
 
 		File moduleFile = new File(moduleFileDirectory, moduleName + ModuleFileType.DOT_DEFAULT_EXTENSION);
