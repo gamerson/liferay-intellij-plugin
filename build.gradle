@@ -21,9 +21,7 @@ plugins {
 apply plugin: "com.liferay.source.formatter"
 apply plugin: "java"
 
-task downloadBlade(type: Download)
 task downloadLiferayDefinitions(type: Download)
-task verifyBlade(type: Verify)
 
 check.dependsOn checkSourceFormatting
 
@@ -33,15 +31,10 @@ checkSourceFormatting {
 
 dependencies {
 	compile group: "biz.aQute.bnd", name: "biz.aQute.bndlib", version: "3.4.0"
+	compile group: "com.liferay.blade", name: "com.liferay.blade.cli", version: "3.1.2"
 	compile group: "commons-configuration", name: "commons-configuration", version: "1.10"
 	compile group: "org.apache.ant", name: "ant", version: "1.10.1"
 	compile group: "org.dom4j", name: "dom4j", version: "2.1.0"
-}
-
-downloadBlade {
-	src bladeLatestDownloadURL
-	dest "build/resources/main/libs/blade.jar"
-	onlyIfModified true
 }
 
 downloadLiferayDefinitions {
@@ -114,7 +107,7 @@ patchPluginXml {
 }
 
 processResources {
-	dependsOn verifyBlade, downloadLiferayDefinitions, downloadLiferayTaglibDefinitions
+	dependsOn downloadLiferayDefinitions, downloadLiferayTaglibDefinitions
 }
 
 def intellijPortalUsername = project.properties["intellijPortalUsername"] ?: ""
@@ -129,17 +122,14 @@ repositories {
 	maven {
 		url "https://repository-cdn.liferay.com/nexus/content/groups/public"
 	}
+
+	maven {
+		url "https://liferay-test-01.ci.cloudbees.com/job/liferay-blade-cli/746/artifact/mavenRepo"
+	}
 }
 
 runIde {
 	jvmArgs "-Xmx2048m"
 }
 
-verifyBlade {
-	dependsOn downloadBlade
-	src "build/resources/main/libs/blade.jar"
-	algorithm "MD5"
-	checksum bladeLatestMD5
-}
-
-version = "1.1.1"
+version = '1.1.1'
