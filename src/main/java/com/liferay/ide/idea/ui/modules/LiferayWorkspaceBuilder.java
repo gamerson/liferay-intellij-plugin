@@ -28,10 +28,14 @@ import com.intellij.openapi.projectRoots.SdkTypeId;
 import com.intellij.openapi.ui.ComboBox;
 import com.intellij.openapi.util.Condition;
 
-import com.liferay.ide.idea.util.BladeCLI;
+import com.liferay.blade.cli.BladeCLI;
+import com.liferay.blade.cli.command.InitArgs;
+import com.liferay.blade.cli.command.InitCommand;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+
+import java.io.File;
 
 import javax.swing.JComboBox;
 
@@ -94,29 +98,34 @@ public abstract class LiferayWorkspaceBuilder extends ModuleBuilder {
 	}
 
 	protected void initWorkspace(Project project) {
-		StringBuilder sb = new StringBuilder();
+		BladeCLI bladeCLI = new BladeCLI();
 
-		sb.append("--base ");
-		sb.append("\"");
-		sb.append(project.getBasePath());
-		sb.append("\" ");
-		sb.append("init ");
-		sb.append("-v ");
-		sb.append(_liferayVersion);
-		sb.append(" ");
-		sb.append("-f ");
+		InitArgs initArgs = new InitArgs();
+
+		initArgs.setForce(true);
+		initArgs.setBase(new File(project.getBasePath()));
+		initArgs.setLiferayVersion(_liferayVersion);
 
 		if (_liferayProjectType.equals(LiferayProjectType.LIFERAY_MAVEN_WORKSPACE)) {
-			sb.append("-b ");
-			sb.append("maven");
+			initArgs.setBuild("maven");
+		}
+
+		InitCommand initCommand = new InitCommand();
+
+		initCommand.setBlade(bladeCLI);
+		initCommand.setArgs(initArgs);
+
+		try {
+			initCommand.execute();
+		}
+		catch (Exception e) {
+			e.printStackTrace();
 		}
 
 		PropertiesComponent component = PropertiesComponent.getInstance(project);
 		String selectedLiferayVersionProperty = "selected.liferay.version";
 
 		component.setValue(selectedLiferayVersionProperty, _liferayVersion);
-
-		BladeCLI.execute(sb.toString());
 	}
 
 	private String _liferayProjectType;
