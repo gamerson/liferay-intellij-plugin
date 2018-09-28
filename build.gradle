@@ -22,7 +22,6 @@ apply plugin: "com.liferay.source.formatter"
 apply plugin: "java"
 
 task downloadBlade(type: Download)
-task downloadLiferayDefinitions(type: Download)
 task verifyBlade(type: Verify)
 
 check.dependsOn checkSourceFormatting
@@ -44,8 +43,8 @@ downloadBlade {
 	onlyIfModified true
 }
 
-downloadLiferayDefinitions {
-	def target = file("build/resources/main/definitions")
+task downloadDtd(type: Download) {
+	def target = file("src/main/resources/definitions/dtd")
 
 	target.mkdirs()
 
@@ -75,8 +74,19 @@ downloadLiferayDefinitions {
 			"https://raw.githubusercontent.com/liferay/liferay-portal/master/definitions/liferay-theme-loader_7_0_0.dtd",
 			"https://raw.githubusercontent.com/liferay/liferay-portal/master/definitions/liferay-theme-loader_7_1_0.dtd",
 			"https://raw.githubusercontent.com/liferay/liferay-portal/master/definitions/liferay-user-notification-definitions_7_0_0.dtd",
-			"https://raw.githubusercontent.com/liferay/liferay-portal/master/definitions/liferay-user-notification-definitions_7_1_0.dtd",
-			"https://raw.githubusercontent.com/liferay/liferay-portal/master/definitions/liferay-workflow-definition_7_0_0.xsd",
+			"https://raw.githubusercontent.com/liferay/liferay-portal/master/definitions/liferay-user-notification-definitions_7_1_0.dtd"
+		])
+
+	dest target
+	overwrite false
+}
+
+task downloadXsd(type: Download) {
+	def target = file("src/main/resources/definitions/xsd")
+
+	target.mkdirs()
+
+	src([
 			"https://raw.githubusercontent.com/liferay/liferay-portal/master/definitions/liferay-workflow-definition_7_1_0.xsd",
 			"https://raw.githubusercontent.com/liferay/liferay-portal/master/definitions/portlet-app_2_0.xsd"
 		])
@@ -85,8 +95,8 @@ downloadLiferayDefinitions {
 	overwrite false
 }
 
-task downloadLiferayTaglibDefinitions(type: Download){
-	def target = file("build/resources/main/tld")
+task downloadTld(type: Download){
+	def target = file("src/main/resources/definitions/tld")
 
 	target.mkdirs()
 
@@ -114,7 +124,7 @@ patchPluginXml {
 }
 
 processResources {
-	dependsOn verifyBlade, downloadLiferayDefinitions, downloadLiferayTaglibDefinitions
+	dependsOn verifyBlade
 }
 
 def intellijPortalUsername = project.properties["intellijPortalUsername"] ?: ""
