@@ -16,12 +16,16 @@ package com.liferay.ide.idea.ui.actions;
 
 import com.intellij.execution.ExecutionListener;
 import com.intellij.execution.ExecutionManager;
+import com.intellij.execution.Executor;
 import com.intellij.execution.RunManager;
 import com.intellij.execution.RunnerAndConfigurationSettings;
 import com.intellij.execution.configurations.RunConfiguration;
 import com.intellij.execution.executors.DefaultRunExecutor;
 import com.intellij.execution.process.ProcessHandler;
 import com.intellij.execution.runners.ExecutionEnvironment;
+import com.intellij.execution.ui.RunContentDescriptor;
+import com.intellij.execution.ui.RunContentManager;
+import com.intellij.execution.ui.RunContentWithExecutorListener;
 import com.intellij.ide.projectView.ProjectView;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.AnAction;
@@ -166,6 +170,23 @@ public abstract class AbstractLiferayGradleTaskAction extends AnAction {
 					}
 
 					handleProcessTerminated(handler);
+				}
+
+			});
+
+		messageBusConnection.subscribe(
+			RunContentManager.TOPIC,
+			new RunContentWithExecutorListener() {
+
+				@Override
+				public void contentRemoved(@Nullable RunContentDescriptor descriptor, @NotNull Executor executor) {
+					ProcessHandler processHandler = descriptor.getProcessHandler();
+
+					processHandler.destroyProcess();
+				}
+
+				@Override
+				public void contentSelected(@Nullable RunContentDescriptor descriptor, @NotNull Executor executor) {
 				}
 
 			});
