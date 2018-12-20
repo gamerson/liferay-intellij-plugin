@@ -36,6 +36,7 @@
 			<li>1.2.0</li>
 			<ul>
 				<li>add support for Liferay Target Platform in new Liferay Workspace wizard</li>
+				<li>code completion for java bean for Liferay Taglib(community contribution)</li>
 			</ul>
 			<li>1.1.1</li>
 			<ul>
