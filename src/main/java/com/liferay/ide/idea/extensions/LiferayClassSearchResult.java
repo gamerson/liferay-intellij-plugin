@@ -20,6 +20,7 @@ package com.liferay.ide.idea.extensions;
 public class LiferayClassSearchResult extends LiferayArtifactSearchResult {
 
 	public String className;
+
 	public String packageName;
 
 }

@@ -14,73 +14,38 @@
 
 package com.liferay.ide.idea.ui.compoments;
 
-import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.ui.TabbedPaneWrapper;
 import com.intellij.util.ui.JBUI;
-
 import gnu.trove.THashMap;
-
-import java.util.*;
-
-import javax.swing.*;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
-
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.idea.maven.dom.model.MavenDomDependency;
 import org.jetbrains.idea.maven.model.MavenId;
+
+import javax.swing.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * @author Charles Wu
  */
 public class LiferayArtifactSearchDialog extends DialogWrapper {
 
-	public static List<MavenId> ourResultForTest;
-
 	@NotNull
-	public static List<MavenId> searchForArtifact(Project project, Collection<MavenDomDependency> managedDependencies) {
-		if (ApplicationManager.getApplication().isUnitTestMode()) {
-			assert ourResultForTest != null;
+	public static List<MavenId> searchForArtifact(Project project) {
+		LiferayArtifactSearchDialog dialog = new LiferayArtifactSearchDialog(project, "", false);
 
-			List<MavenId> res = ourResultForTest;
-			ourResultForTest = null;
-
-			return res;
-		}
-
-		LiferayArtifactSearchDialog d = new LiferayArtifactSearchDialog(project, "", false);
-
-		d.setManagedDependencies(managedDependencies);
-
-		if (!d.showAndGet()) {
+		if (!dialog.showAndGet()) {
 			return Collections.emptyList();
 		}
 
-		return d.getResult();
-	}
-
-	@NotNull
-	public static List<MavenId> searchForClass(Project project, String className) {
-		if (ApplicationManager.getApplication().isUnitTestMode()) {
-			assert ourResultForTest != null;
-
-			List<MavenId> res = ourResultForTest;
-			ourResultForTest = null;
-
-			return res;
-		}
-
-		LiferayArtifactSearchDialog d = new LiferayArtifactSearchDialog(project, className, true);
-
-		if (!d.showAndGet()) {
-			return Collections.emptyList();
-		}
-
-		return d.getResult();
+		return dialog.getResult();
 	}
 
 	@Override
@@ -97,19 +62,6 @@ public class LiferayArtifactSearchDialog extends DialogWrapper {
 		return myResult;
 	}
 
-	public void setManagedDependencies(Collection<MavenDomDependency> managedDependencies) {
-		myManagedDependenciesMap.clear();
-
-		for (MavenDomDependency dependency : managedDependencies) {
-			String groupId = dependency.getGroupId().getStringValue();
-			String artifactId = dependency.getArtifactId().getStringValue();
-			String version = dependency.getVersion().getStringValue();
-
-			if (StringUtil.isNotEmpty(groupId) && StringUtil.isNotEmpty(artifactId) && StringUtil.isNotEmpty(version)) {
-				myManagedDependenciesMap.put(Pair.create(groupId, artifactId), version);
-			}
-		}
-	}
 
 	@Override
 	protected JComponent createCenterPanel() {
@@ -126,7 +78,7 @@ public class LiferayArtifactSearchDialog extends DialogWrapper {
 
 	@Override
 	protected String getDimensionServiceKey() {
-		return "Maven.ArtifactSearchDialog";
+		return "Liferay.ArtifactSearchDialog";
 	}
 
 	@NotNull
@@ -144,7 +96,7 @@ public class LiferayArtifactSearchDialog extends DialogWrapper {
 
 		initComponents(project, initialText, classMode);
 
-		setTitle("Maven Artifact Search");
+		setTitle("Liferay Artifact Search");
 		updateOkButtonState();
 		init();
 
@@ -176,19 +128,12 @@ public class LiferayArtifactSearchDialog extends DialogWrapper {
 			project, classMode ? initialText : "", true, listener, this, myManagedDependenciesMap);
 
 		myTabbedPane.addTab("Search for artifact", myArtifactsPanel);
-		myTabbedPane.addTab("Search for class", myClassesPanel);
+		myTabbedPane.addTab("Search for class name", myClassesPanel);
 		myTabbedPane.setSelectedIndex(classMode ? 1 : 0);
 
 		myTabbedPane.getComponent().setPreferredSize(JBUI.size(900, 600));
 
-		myTabbedPane.addChangeListener(new ChangeListener() {
-
-			@Override
-			public void stateChanged(ChangeEvent e) {
-				updateOkButtonState();
-			}
-
-		});
+		myTabbedPane.addChangeListener(e -> updateOkButtonState());
 
 		updateOkButtonState();
 	}
@@ -196,7 +141,10 @@ public class LiferayArtifactSearchDialog extends DialogWrapper {
 	private void updateOkButtonState() {
 		Boolean canSelect = myOkButtonStates.get(myTabbedPane.getSelectedComponent());
 
-		if (canSelect == null)canSelect = false;
+		if (canSelect == null) {
+			canSelect = false;
+		}
+
 		setOKActionEnabled(canSelect);
 	}
 

@@ -14,9 +14,9 @@
 
 package com.liferay.ide.idea.extensions;
 
-import java.util.ArrayList;
 import java.util.List;
 
+import com.intellij.util.SmartList;
 import org.jetbrains.idea.maven.model.MavenArtifactInfo;
 
 /**
@@ -24,6 +24,6 @@ import org.jetbrains.idea.maven.model.MavenArtifactInfo;
  */
 public class LiferayArtifactSearchResult {
 
-	public List<MavenArtifactInfo> versions = new ArrayList<>();
+	public List<MavenArtifactInfo> versions = new SmartList<>();
 
 }

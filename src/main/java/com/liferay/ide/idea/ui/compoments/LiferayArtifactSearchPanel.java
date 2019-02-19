@@ -129,9 +129,9 @@ public class LiferayArtifactSearchPanel extends JPanel {
 	}
 
 	private void doSearch(String searchText) {
-		Searcher searcher = myClassMode ? new LiferayClassSearcher() : new LiferayArtifactSearcher();
+		Searcher<? extends LiferayArtifactSearchResult> searcher = myClassMode ? new LiferayClassSearcher() : new LiferayArtifactSearcher();
 
-		List<LiferayArtifactSearchResult> result = searcher.search(myProject, searchText, MAX_RESULT);
+		List<? extends LiferayArtifactSearchResult> result = searcher.search(myProject, searchText, MAX_RESULT);
 
 		resortUsingDependencyVersionMap(result);
 
@@ -254,7 +254,7 @@ public class LiferayArtifactSearchPanel extends JPanel {
 		}.installOn(myResultList);
 	}
 
-	private void resortUsingDependencyVersionMap(List<LiferayArtifactSearchResult> result) {
+	private void resortUsingDependencyVersionMap(List<? extends LiferayArtifactSearchResult> result) {
 		for (LiferayArtifactSearchResult searchResult : result) {
 			if (searchResult.versions.isEmpty())continue;
 
