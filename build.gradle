@@ -191,7 +191,7 @@ formatSource {
 
 intellij {
 	plugins "CSS", "DatabaseTools", "gradle", "Groovy", "java-i18n", "JavaEE", "JavaScriptLanguage", "jsp", "junit", "maven", "PersistenceSupport", "properties", "sass"
-	version "IU-2018.3.2"
+	version "IU-2018.3.4"
 }
 
 patchPluginXml {
@@ -203,10 +203,10 @@ processResources {
 	dependsOn verifyBlade
 }
 
-def intellijPortalToken = credentials.intellijPortalToken ?: ""
+def intellijApiKey = credentials.intellijApiKey ?: ""
 
 publishPlugin {
-	token intellijPortalToken
+	token intellijApiKey
 }
 
 repositories {
@@ -232,4 +232,4 @@ verifyBlade {
 	checksum bladeLatestMD5
 }
 
-version = "1.2.1"
+version = "1.3.0"
