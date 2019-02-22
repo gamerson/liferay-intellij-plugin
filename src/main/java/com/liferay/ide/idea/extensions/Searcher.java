@@ -30,7 +30,7 @@ import org.jetbrains.idea.maven.model.MavenArtifactInfo;
 public abstract class Searcher<RESULT_TYPE extends LiferayArtifactSearchResult> {
 
 	public List<RESULT_TYPE> search(Project project, String pattern, int maxResult) {
-		return sort(searchImpl(project, pattern, maxResult));
+		return _sort(searchImpl(project, pattern, maxResult));
 	}
 
 	protected String makeKey(MavenArtifactInfo result) {
@@ -43,7 +43,7 @@ public abstract class Searcher<RESULT_TYPE extends LiferayArtifactSearchResult> 
 
 	protected abstract List<RESULT_TYPE> searchImpl(Project project, String pattern, int maxResult);
 
-	private List<RESULT_TYPE> sort(List<RESULT_TYPE> result) {
+	private List<RESULT_TYPE> _sort(List<RESULT_TYPE> result) {
 		for (RESULT_TYPE each : result) {
 			if (each.versions.size() > 1) {
 				TreeMap<MavenVersionComparable, MavenArtifactInfo> tree = new TreeMap<>(Collections.reverseOrder());

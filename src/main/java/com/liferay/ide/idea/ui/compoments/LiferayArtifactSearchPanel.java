@@ -16,15 +16,21 @@ package com.liferay.ide.idea.ui.compoments;
 
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.editor.colors.EditorColorsManager;
+import com.intellij.openapi.editor.colors.EditorColorsScheme;
 import com.intellij.openapi.editor.colors.EditorFontType;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Comparing;
 import com.intellij.openapi.util.Pair;
-import com.intellij.ui.*;
+import com.intellij.ui.DocumentAdapter;
+import com.intellij.ui.DoubleClickListener;
+import com.intellij.ui.ScrollPaneFactory;
+import com.intellij.ui.SimpleColoredComponent;
+import com.intellij.ui.SimpleTextAttributes;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.treeStructure.Tree;
 import com.intellij.util.Alarm;
 import com.intellij.util.ui.AbstractLayoutManager;
+import com.intellij.util.ui.StatusText;
 import com.intellij.util.ui.UIUtil;
 
 import com.liferay.ide.idea.extensions.LiferayArtifactSearchResult;
@@ -33,24 +39,35 @@ import com.liferay.ide.idea.extensions.LiferayClassSearchResult;
 import com.liferay.ide.idea.extensions.LiferayClassSearcher;
 import com.liferay.ide.idea.extensions.Searcher;
 
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.Insets;
+import java.awt.Rectangle;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import javax.swing.*;
+import javax.swing.JPanel;
+import javax.swing.JScrollBar;
+import javax.swing.JScrollPane;
+import javax.swing.JTextField;
+import javax.swing.JTree;
+import javax.swing.ScrollPaneConstants;
+import javax.swing.SwingUtilities;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.TreeModelListener;
-import javax.swing.event.TreeSelectionEvent;
-import javax.swing.event.TreeSelectionListener;
+import javax.swing.text.Document;
 import javax.swing.tree.TreeCellRenderer;
 import javax.swing.tree.TreeModel;
 import javax.swing.tree.TreePath;
+import javax.swing.tree.TreeSelectionModel;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.idea.maven.model.MavenArtifactInfo;
@@ -62,25 +79,25 @@ import org.jetbrains.idea.maven.utils.MavenLog;
  */
 public class LiferayArtifactSearchPanel extends JPanel {
 
-	public LiferayArtifactSearchPanel(Project project, String initialText, boolean classMode, Listener listener,
-									LiferayArtifactSearchDialog dialog,
-									Map<Pair<String, String>, String> managedDependenciesMap) {
+	public LiferayArtifactSearchPanel(
+		Project project, String initialText, boolean classMode, Listener listener, LiferayArtifactSearchDialog dialog,
+		Map<Pair<String, String>, String> managedDependenciesMap) {
 
-		myProject = project;
-		myDialog = dialog;
-		myClassMode = classMode;
-		myListener = listener;
-		myManagedDependenciesMap = managedDependenciesMap;
+		_project = project;
+		_classMode = classMode;
+		_listener = listener;
+		_dialog = dialog;
+		_managedDependenciesMap = managedDependenciesMap;
 
-		initComponents(initialText);
-		myAlarm = new Alarm(Alarm.ThreadToUse.POOLED_THREAD, dialog.getDisposable());
+		_initComponents(initialText);
+		_alarm = new Alarm(Alarm.ThreadToUse.POOLED_THREAD, dialog.getDisposable());
 	}
 
 	@NotNull
 	public List<MavenId> getResult() {
 		List<MavenId> result = new ArrayList<>();
 
-		for (TreePath each : myResultList.getSelectionPaths()) {
+		for (TreePath each : _resultList.getSelectionPaths()) {
 			Object sel = each.getLastPathComponent();
 			MavenArtifactInfo info;
 
@@ -98,98 +115,127 @@ public class LiferayArtifactSearchPanel extends JPanel {
 	}
 
 	public JTextField getSearchField() {
-		return mySearchField;
+		return _searchField;
 	}
 
 	public void scheduleSearch() {
-		myListener.canSelectStateChanged(this, false);
-		myResultList.setPaintBusy(true);
+		_listener.canSelectStateChanged(this, false);
+		_resultList.setPaintBusy(true);
 
 		// evaluate text value in the swing thread
 
-		final String text = mySearchField.getText();
+		final String text = _searchField.getText();
 
-		myAlarm.cancelAllRequests();
-		myAlarm.addRequest(() -> {
-			try {
-				doSearch(text);
-			}
-			catch (Throwable e) {
-				MavenLog.LOG.warn(e);
-			}
-		}, 500);
+		_alarm.cancelAllRequests();
+		_alarm.addRequest(
+			() -> {
+				try {
+					_doSearch(text);
+				}
+				catch (Throwable e) {
+					MavenLog.LOG.warn(e);
+				}
+			},
+			500);
 	}
 
 	public interface Listener {
 
-		void itemSelected();
+		public void canSelectStateChanged(@NotNull LiferayArtifactSearchPanel from, boolean canSelect);
 
-		void canSelectStateChanged(@NotNull LiferayArtifactSearchPanel from, boolean canSelect);
+		public void itemSelected();
 
 	}
 
-	private void doSearch(String searchText) {
-		Searcher<? extends LiferayArtifactSearchResult> searcher = myClassMode ? new LiferayClassSearcher() : new LiferayArtifactSearcher();
+	private void _doSearch(String searchText) {
+		Searcher<? extends LiferayArtifactSearchResult> searcher =
+			_classMode ? new LiferayClassSearcher() : new LiferayArtifactSearcher();
 
-		List<? extends LiferayArtifactSearchResult> result = searcher.search(myProject, searchText, MAX_RESULT);
+		List<? extends LiferayArtifactSearchResult> result = searcher.search(_project, searchText, _MAX_RESULT);
 
-		resortUsingDependencyVersionMap(result);
+		_resortUsingDependencyVersionMap(result);
 
 		final TreeModel model = new MyTreeModel(result);
 
-		SwingUtilities.invokeLater(() -> {
-			if (!myDialog.isVisible()) return;
-
-			myResultList.getEmptyText().setText("No results");
-			myResultList.setModel(model);
-			myResultList.setSelectionRow(0);
-			myResultList.setPaintBusy(false);
-		});
-	}
-
-	private void initComponents(String initialText) {
-		myResultList = new Tree();
-		myResultList.setExpandableItemsEnabled(false);
-		myResultList.getEmptyText().setText("Loading...");
-		myResultList.setRootVisible(false);
-		myResultList.setShowsRootHandles(true);
-		myResultList.setModel(null);
-		MyArtifactCellRenderer renderer = myClassMode ? new MyClassCellRenderer(myResultList)
-			: new MyArtifactCellRenderer(myResultList);
-
-		myResultList.setCellRenderer(renderer);
-		myResultList.setRowHeight(renderer.getPreferredSize().height);
-
-		mySearchField = new JTextField(initialText);
-		mySearchField.addKeyListener(new KeyAdapter() {
-
-			@Override
-			public void keyPressed(KeyEvent e) {
-				int d;
-
-				if (e.getKeyCode() == KeyEvent.VK_DOWN) {
-					d = 1;
-				}
-				else if (e.getKeyCode() == KeyEvent.VK_UP) {
-					d = -1;
-				}
-				else {
+		SwingUtilities.invokeLater(
+			() -> {
+				if (!_dialog.isVisible()) {
 					return;
 				}
 
-				int row = myResultList.getSelectionModel().getLeadSelectionRow();
-				row += d;
+				StatusText text = _resultList.getEmptyText();
 
-				if (row >= 0 && row < myResultList.getRowCount()) {
-					myResultList.setSelectionRow(row);
+				text.setText("No results");
+
+				_resultList.setModel(model);
+				_resultList.setSelectionRow(0);
+				_resultList.setPaintBusy(false);
+			});
+	}
+
+	private void _initComponents(String initialText) {
+		_resultList = new Tree();
+
+		_resultList.setExpandableItemsEnabled(false);
+
+		StatusText text = _resultList.getEmptyText();
+
+		text.setText("Loading...");
+
+		_resultList.setRootVisible(false);
+		_resultList.setShowsRootHandles(true);
+		_resultList.setModel(null);
+
+		MyArtifactCellRenderer renderer;
+
+		if (_classMode) {
+			renderer = new MyClassCellRenderer(_resultList);
+		}
+		else {
+			renderer = new MyArtifactCellRenderer(_resultList);
+		}
+
+		_resultList.setCellRenderer(renderer);
+
+		Dimension preferredSize = renderer.getPreferredSize();
+
+		_resultList.setRowHeight(preferredSize.height);
+
+		_searchField = new JTextField(initialText);
+
+		_searchField.addKeyListener(
+			new KeyAdapter() {
+
+				@Override
+				public void keyPressed(KeyEvent e) {
+					int direction;
+
+					if (e.getKeyCode() == KeyEvent.VK_DOWN) {
+						direction = 1;
+					}
+					else if (e.getKeyCode() == KeyEvent.VK_UP) {
+						direction = -1;
+					}
+					else {
+						return;
+					}
+
+					TreeSelectionModel selectionModel = _resultList.getSelectionModel();
+
+					int row = selectionModel.getLeadSelectionRow();
+
+					row += direction;
+
+					if ((row >= 0) && (row < _resultList.getRowCount())) {
+						_resultList.setSelectionRow(row);
+					}
 				}
-			}
 
-		});
+			});
 
 		setLayout(new BorderLayout());
-		add(mySearchField, BorderLayout.NORTH);
-		JScrollPane pane = ScrollPaneFactory.createScrollPane(myResultList);
+		add(_searchField, BorderLayout.NORTH);
+		JScrollPane pane = ScrollPaneFactory.createScrollPane(_resultList);
 
 		pane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 		pane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS); // Don't remove this line.
@@ -199,50 +245,57 @@ public class LiferayArtifactSearchPanel extends JPanel {
 
 		add(pane, BorderLayout.CENTER);
 
-		mySearchField.getDocument().addDocumentListener(new DocumentAdapter() {
+		Document document = _searchField.getDocument();
 
-			@Override
-			protected void textChanged(@NotNull DocumentEvent e) {
-				scheduleSearch();
-			}
+		document.addDocumentListener(
+			new DocumentAdapter() {
 
-		});
-
-		myResultList.addTreeSelectionListener(new TreeSelectionListener() {
-
-			@Override
-			public void valueChanged(TreeSelectionEvent e) {
-				if (!myAlarm.isEmpty()) return;
-
-				boolean hasSelection = !myResultList.isSelectionEmpty();
-				myListener.canSelectStateChanged(LiferayArtifactSearchPanel.this, hasSelection);
-			}
-
-		});
-
-		myResultList.addKeyListener(new KeyAdapter() {
-
-			@Override
-			public void keyPressed(KeyEvent e) {
-				if (e.getKeyCode() == KeyEvent.VK_ENTER && myResultList.getLastSelectedPathComponent() != null) {
-					myListener.itemSelected();
-					e.consume();
+				@Override
+				protected void textChanged(@NotNull DocumentEvent e) {
+					scheduleSearch();
 				}
-			}
 
-		});
+			});
+
+		_resultList.addTreeSelectionListener(
+			e -> {
+				if (!_alarm.isEmpty()) {
+					return;
+				}
+
+				boolean hasSelection = !_resultList.isSelectionEmpty();
+
+				_listener.canSelectStateChanged(LiferayArtifactSearchPanel.this, hasSelection);
+			});
+
+		_resultList.addKeyListener(
+			new KeyAdapter() {
+
+				@Override
+				public void keyPressed(KeyEvent event) {
+					if ((event.getKeyCode() == KeyEvent.VK_ENTER) &&
+						(_resultList.getLastSelectedPathComponent() != null)) {
+
+						_listener.itemSelected();
+						event.consume();
+					}
+				}
+
+			});
 
 		new DoubleClickListener() {
 
 			@Override
-			protected boolean onDoubleClick(MouseEvent e) {
-				final TreePath path = myResultList.getPathForLocation(e.getX(), e.getY());
+			protected boolean onDoubleClick(MouseEvent event) {
+				final TreePath path = _resultList.getPathForLocation(event.getX(), event.getY());
 
-				if (path != null && myResultList.isPathSelected(path)) {
+				if ((path != null) && _resultList.isPathSelected(path)) {
 					Object sel = path.getLastPathComponent();
 
-					if (sel != null && myResultList.getModel().isLeaf(sel)) {
-						myListener.itemSelected();
+					TreeModel treeModel = _resultList.getModel();
+
+					if ((sel != null) && treeModel.isLeaf(sel)) {
+						_listener.itemSelected();
 
 						return true;
 					}
@@ -251,49 +304,56 @@ public class LiferayArtifactSearchPanel extends JPanel {
 				return false;
 			}
 
-		}.installOn(myResultList);
+		}.installOn(_resultList);
 	}
 
-	private void resortUsingDependencyVersionMap(List<? extends LiferayArtifactSearchResult> result) {
+	private void _resortUsingDependencyVersionMap(List<? extends LiferayArtifactSearchResult> result) {
 		for (LiferayArtifactSearchResult searchResult : result) {
-			if (searchResult.versions.isEmpty())continue;
+			if (searchResult.versions.isEmpty()) {
+				continue;
+			}
 
 			MavenArtifactInfo artifactInfo = searchResult.versions.get(0);
 
-			final String managedVersion = myManagedDependenciesMap.get(
+			final String managedVersion = _managedDependenciesMap.get(
 				Pair.create(artifactInfo.getGroupId(), artifactInfo.getArtifactId()));
 
 			if (managedVersion != null) {
-				Collections.sort(searchResult.versions, (o1, o2) -> {
-					String v1 = o1.getVersion();
-					String v2 = o2.getVersion();
+				searchResult.versions.sort(
+					(o1, o2) -> {
+						String v1 = o1.getVersion();
+						String v2 = o2.getVersion();
 
-					if (Comparing.equal(v1, v2)) return 0;
+						if (Comparing.equal(v1, v2)) {
+							return 0;
+						}
 
-					if (managedVersion.equals(v1)) return -1;
+						if (managedVersion.equals(v1)) {
+							return -1;
+						}
 
-					if (managedVersion.equals(v2)) return 1;
+						if (managedVersion.equals(v2)) {
+							return 1;
+						}
 
-					return 0;
-				});
+						return 0;
+					});
 			}
 		}
 	}
 
-	private static final int MAX_RESULT = 1000;
+	private static final int _MAX_RESULT = 1000;
 
-	private final Alarm myAlarm;
-	private final boolean myClassMode;
-	private final LiferayArtifactSearchDialog myDialog;
-	private final Listener myListener;
-	private final Map<Pair<String, String>, String> myManagedDependenciesMap;
-	private final Project myProject;
-	private Tree myResultList;
-	private JTextField mySearchField;
+	private final Alarm _alarm;
+	private final boolean _classMode;
+	private final LiferayArtifactSearchDialog _dialog;
+	private final Listener _listener;
+	private final Map<Pair<String, String>, String> _managedDependenciesMap;
+	private final Project _project;
+	private Tree _resultList;
+	private JTextField _searchField;
 
 	private static class MyTreeModel implements TreeModel {
-
-		List<? extends LiferayArtifactSearchResult> myItems;
 
 		@Override
 		public void addTreeModelListener(TreeModelListener l) {
@@ -319,23 +379,25 @@ public class LiferayArtifactSearchPanel extends JPanel {
 		}
 
 		public List getList(Object parent) {
-			if (parent == myItems) return myItems;
+			if (parent == _items) {
+				return _items;
+			}
 
-			if (parent instanceof LiferayArtifactSearchResult)
-
+			if (parent instanceof LiferayArtifactSearchResult) {
 				return ((LiferayArtifactSearchResult)parent).versions;
+			}
 
 			return null;
 		}
 
 		@Override
 		public Object getRoot() {
-			return myItems;
+			return _items;
 		}
 
 		@Override
 		public boolean isLeaf(Object node) {
-			if (node != myItems && (getList(node) == null || getChildCount(node) < 2)) {
+			if ((node != _items) && ((getList(node) == null) || (getChildCount(node) < 2))) {
 				return true;
 			}
 
@@ -351,27 +413,31 @@ public class LiferayArtifactSearchPanel extends JPanel {
 		}
 
 		private MyTreeModel(List<? extends LiferayArtifactSearchResult> items) {
-			myItems = items;
+			_items = items;
 		}
+
+		private List<? extends LiferayArtifactSearchResult> _items;
 
 	}
 
 	private class MyArtifactCellRenderer extends JPanel implements TreeCellRenderer {
 
 		@Override
-		public Component getTreeCellRendererComponent(JTree tree, Object value, boolean selected, boolean expanded, boolean leaf, int row,
-													boolean hasFocus) {
+		public Component getTreeCellRendererComponent(
+			JTree tree, Object value, boolean selected, boolean expanded, boolean leaf, int row, boolean hasFocus) {
 
-			myLeftComponent.clear();
-			myRightComponent.clear();
+			leftComponent.clear();
+			rightComponent.clear();
 
 			setBackground(selected ? UIUtil.getTreeSelectionBackground(hasFocus) : tree.getBackground());
 
-			myLeftComponent.setForeground(selected ? UIUtil.getTreeSelectionForeground(hasFocus) : null);
-			myRightComponent.setForeground(selected ? UIUtil.getTreeSelectionForeground(hasFocus) : null);
+			leftComponent.setForeground(selected ? UIUtil.getTreeSelectionForeground(hasFocus) : null);
+			rightComponent.setForeground(selected ? UIUtil.getTreeSelectionForeground(hasFocus) : null);
 
-			if (value == tree.getModel().getRoot()) {
-				myLeftComponent.append("Results", SimpleTextAttributes.REGULAR_ATTRIBUTES);
+			TreeModel treeModel = tree.getModel();
+
+			if (value == treeModel.getRoot()) {
+				leftComponent.append("Results", SimpleTextAttributes.REGULAR_ATTRIBUTES);
 			}
 			else if (value instanceof LiferayArtifactSearchResult) {
 				formatSearchResult(tree, (LiferayArtifactSearchResult)value, selected);
@@ -381,15 +447,15 @@ public class LiferayArtifactSearchPanel extends JPanel {
 
 				String version = info.getVersion();
 
-				String managedVersion = myManagedDependenciesMap.get(
+				String managedVersion = _managedDependenciesMap.get(
 					Pair.create(info.getGroupId(), info.getArtifactId()));
 
-				if (managedVersion != null && managedVersion.equals(version)) {
-					myLeftComponent.append(version, SimpleTextAttributes.REGULAR_BOLD_ATTRIBUTES);
-					myLeftComponent.append(" (from <dependencyManagement>)", SimpleTextAttributes.GRAYED_ATTRIBUTES);
+				if ((managedVersion != null) && managedVersion.equals(version)) {
+					leftComponent.append(version, SimpleTextAttributes.REGULAR_BOLD_ATTRIBUTES);
+					leftComponent.append(" (from <dependencyManagement>)", SimpleTextAttributes.GRAYED_ATTRIBUTES);
 				}
 				else {
-					myLeftComponent.append(version, SimpleTextAttributes.REGULAR_ATTRIBUTES);
+					leftComponent.append(version, SimpleTextAttributes.REGULAR_ATTRIBUTES);
 				}
 			}
 
@@ -404,8 +470,9 @@ public class LiferayArtifactSearchPanel extends JPanel {
 
 		protected void formatSearchResult(JTree tree, LiferayArtifactSearchResult searchResult, boolean selected) {
 			MavenArtifactInfo info = searchResult.versions.get(0);
-			myLeftComponent.setIcon(AllIcons.Nodes.PpLib);
-			appendArtifactInfo(myLeftComponent, info, selected);
+			leftComponent.setIcon(AllIcons.Nodes.PpLib);
+
+			appendArtifactInfo(leftComponent, info, selected);
 		}
 
 		protected SimpleTextAttributes getGrayAttributes(boolean selected) {
@@ -416,65 +483,76 @@ public class LiferayArtifactSearchPanel extends JPanel {
 			return SimpleTextAttributes.REGULAR_ATTRIBUTES;
 		}
 
-		protected SimpleColoredComponent myLeftComponent = new SimpleColoredComponent();
-		protected SimpleColoredComponent myRightComponent = new SimpleColoredComponent();
+		protected SimpleColoredComponent leftComponent = new SimpleColoredComponent();
+		protected SimpleColoredComponent rightComponent = new SimpleColoredComponent();
 
 		private MyArtifactCellRenderer(final Tree tree) {
-			myLeftComponent.setOpaque(false);
-			myRightComponent.setOpaque(false);
-			myLeftComponent.setIconOpaque(false);
-			myRightComponent.setIconOpaque(false);
-			add(myLeftComponent);
-			add(myRightComponent);
+			leftComponent.setOpaque(false);
+			rightComponent.setOpaque(false);
+			leftComponent.setIconOpaque(false);
+			rightComponent.setIconOpaque(false);
+			add(leftComponent);
+			add(rightComponent);
 
-			Font font = EditorColorsManager.getInstance().getGlobalScheme().getFont(EditorFontType.PLAIN);
+			EditorColorsManager colorsManager = EditorColorsManager.getInstance();
 
-			myLeftComponent.setFont(font);
-			myRightComponent.setFont(font);
+			EditorColorsScheme globalScheme = colorsManager.getGlobalScheme();
 
-			setPreferredSize(new Dimension(2000, myLeftComponent.getPreferredSize().height));
+			Font font = globalScheme.getFont(EditorFontType.PLAIN);
 
-			setLayout(new AbstractLayoutManager() {
+			leftComponent.setFont(font);
+			rightComponent.setFont(font);
 
-				@Override
-				public Dimension preferredLayoutSize(Container parent) {
-					return new Dimension(getVisibleWidth(), myLeftComponent.getPreferredSize().height);
-				}
+			Dimension preferredSize = leftComponent.getPreferredSize();
 
-				@Override
-				public void layoutContainer(Container parent) {
-					int w = getVisibleWidth();
+			setPreferredSize(new Dimension(2000, preferredSize.height));
 
-					Dimension ls = myLeftComponent.getPreferredSize();
-					Dimension rs = myRightComponent.getPreferredSize();
+			setLayout(
+				new AbstractLayoutManager() {
 
-					int lw = w - rs.width - 10;
-					int rw = rs.width;
+					@Override
+					public void layoutContainer(Container parent) {
+						int width = _getVisibleWidth();
 
-					myLeftComponent.setBounds(0, 0, lw, ls.height);
-					myRightComponent.setBounds(w - rw, 0, rw, rs.height);
-				}
+						Dimension leftSize = leftComponent.getPreferredSize();
 
-				private int getVisibleWidth() {
-					int w = tree.getVisibleRect().width - 10;
-					Insets insets = tree.getInsets();
+						Dimension rightSize = rightComponent.getPreferredSize();
 
-					w -= insets.left + insets.right;
+						int leftWith = width - rightSize.width - 10;
+						int rightWidth = rightSize.width;
 
-					JScrollPane scrollPane = JBScrollPane.findScrollPane(tree);
-
-					if (scrollPane != null) {
-						JScrollBar sb = scrollPane.getVerticalScrollBar();
-
-						if (sb != null) {
-							w -= sb.getWidth();
-						}
+						leftComponent.setBounds(0, 0, leftWith, leftSize.height);
+						rightComponent.setBounds(width - rightWidth, 0, rightWidth, rightSize.height);
 					}
 
-					return w;
-				}
+					@Override
+					public Dimension preferredLayoutSize(Container parent) {
+						return new Dimension(_getVisibleWidth(), preferredSize.height);
+					}
 
-			});
+					private int _getVisibleWidth() {
+						Rectangle rectangle = tree.getVisibleRect();
+
+						int width = rectangle.width - 10;
+
+						Insets insets = tree.getInsets();
+
+						width -= insets.left + insets.right;
+
+						JScrollPane scrollPane = JBScrollPane.findScrollPane(tree);
+
+						if (scrollPane != null) {
+							JScrollBar sb = scrollPane.getVerticalScrollBar();
+
+							if (sb != null) {
+								width -= sb.getWidth();
+							}
+						}
+
+						return width;
+					}
+
+				});
 		}
 
 	}
@@ -486,11 +564,11 @@ public class LiferayArtifactSearchPanel extends JPanel {
 			LiferayClassSearchResult classResult = (LiferayClassSearchResult)searchResult;
 			MavenArtifactInfo info = searchResult.versions.get(0);
 
-			myLeftComponent.setIcon(AllIcons.Nodes.Class);
-			myLeftComponent.append(classResult.className, SimpleTextAttributes.REGULAR_ATTRIBUTES);
-			myLeftComponent.append(" (" + classResult.packageName + ")", getGrayAttributes(selected));
+			leftComponent.setIcon(AllIcons.Nodes.Class);
+			leftComponent.append(classResult.className, SimpleTextAttributes.REGULAR_ATTRIBUTES);
+			leftComponent.append(" (" + classResult.packageName + ")", getGrayAttributes(selected));
 
-			appendArtifactInfo(myRightComponent, info, selected);
+			appendArtifactInfo(rightComponent, info, selected);
 		}
 
 		private MyClassCellRenderer(Tree tree) {

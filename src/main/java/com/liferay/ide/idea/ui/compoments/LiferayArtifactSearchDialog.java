@@ -17,20 +17,21 @@ package com.liferay.ide.idea.ui.compoments;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.util.Pair;
-import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.ui.TabbedPaneWrapper;
 import com.intellij.util.ui.JBUI;
-import gnu.trove.THashMap;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.idea.maven.dom.model.MavenDomDependency;
-import org.jetbrains.idea.maven.model.MavenId;
 
-import javax.swing.*;
-import java.util.Collection;
+import gnu.trove.THashMap;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import javax.swing.Action;
+import javax.swing.JComponent;
+
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.idea.maven.model.MavenId;
 
 /**
  * @author Charles Wu
@@ -50,29 +51,29 @@ public class LiferayArtifactSearchDialog extends DialogWrapper {
 
 	@Override
 	public JComponent getPreferredFocusedComponent() {
-		if (myTabbedPane.getSelectedIndex() == 0) {
-			return myArtifactsPanel.getSearchField();
+		if (_tabbedPane.getSelectedIndex() == 0) {
+			return _artifactsPanel.getSearchField();
 		}
 
-		return myClassesPanel.getSearchField();
+		return _classesPanel.getSearchField();
 	}
 
 	@NotNull
 	public List<MavenId> getResult() {
-		return myResult;
+		return _result;
 	}
-
 
 	@Override
 	protected JComponent createCenterPanel() {
-		return myTabbedPane.getComponent();
+		return _tabbedPane.getComponent();
 	}
 
 	@Override
 	protected void doOKAction() {
-		LiferayArtifactSearchPanel panel = myTabbedPane.getSelectedIndex() == 0 ? myArtifactsPanel : myClassesPanel;
+		LiferayArtifactSearchPanel panel = _tabbedPane.getSelectedIndex() == 0 ? _artifactsPanel : _classesPanel;
 
-		myResult = panel.getResult();
+		_result = panel.getResult();
+
 		super.doOKAction();
 	}
 
@@ -94,25 +95,25 @@ public class LiferayArtifactSearchDialog extends DialogWrapper {
 	private LiferayArtifactSearchDialog(Project project, String initialText, boolean classMode) {
 		super(project, true);
 
-		initComponents(project, initialText, classMode);
+		_initComponents(project, initialText, classMode);
 
 		setTitle("Liferay Artifact Search");
-		updateOkButtonState();
+		_updateOkButtonState();
 		init();
 
-		myArtifactsPanel.scheduleSearch();
-		myClassesPanel.scheduleSearch();
+		_artifactsPanel.scheduleSearch();
+		_classesPanel.scheduleSearch();
 	}
 
-	private void initComponents(Project project, String initialText, boolean classMode) {
-		myTabbedPane = new TabbedPaneWrapper(project);
+	private void _initComponents(Project project, String initialText, boolean classMode) {
+		_tabbedPane = new TabbedPaneWrapper(project);
 
 		LiferayArtifactSearchPanel.Listener listener = new LiferayArtifactSearchPanel.Listener() {
 
 			@Override
 			public void canSelectStateChanged(@NotNull LiferayArtifactSearchPanel from, boolean canSelect) {
-				myOkButtonStates.put(from, canSelect);
-				updateOkButtonState();
+				_okButtonStates.put(from, canSelect);
+				_updateOkButtonState();
 			}
 
 			@Override
@@ -122,24 +123,26 @@ public class LiferayArtifactSearchDialog extends DialogWrapper {
 
 		};
 
-		myArtifactsPanel = new LiferayArtifactSearchPanel(
-			project, !classMode ? initialText : "", false, listener, this, myManagedDependenciesMap);
-		myClassesPanel = new LiferayArtifactSearchPanel(
-			project, classMode ? initialText : "", true, listener, this, myManagedDependenciesMap);
+		_artifactsPanel = new LiferayArtifactSearchPanel(
+			project, !classMode ? initialText : "", false, listener, this, _managedDependenciesMap);
+		_classesPanel = new LiferayArtifactSearchPanel(
+			project, classMode ? initialText : "", true, listener, this, _managedDependenciesMap);
 
-		myTabbedPane.addTab("Search for artifact", myArtifactsPanel);
-		myTabbedPane.addTab("Search for class name", myClassesPanel);
-		myTabbedPane.setSelectedIndex(classMode ? 1 : 0);
+		_tabbedPane.addTab("Search for artifact", _artifactsPanel);
+		_tabbedPane.addTab("Search for class name", _classesPanel);
+		_tabbedPane.setSelectedIndex(classMode ? 1 : 0);
 
-		myTabbedPane.getComponent().setPreferredSize(JBUI.size(900, 600));
+		JComponent component = _tabbedPane.getComponent();
 
-		myTabbedPane.addChangeListener(e -> updateOkButtonState());
+		component.setPreferredSize(JBUI.size(900, 600));
 
-		updateOkButtonState();
+		_tabbedPane.addChangeListener(e -> _updateOkButtonState());
+
+		_updateOkButtonState();
 	}
 
-	private void updateOkButtonState() {
-		Boolean canSelect = myOkButtonStates.get(myTabbedPane.getSelectedComponent());
+	private void _updateOkButtonState() {
+		Boolean canSelect = _okButtonStates.get(_tabbedPane.getSelectedComponent());
 
 		if (canSelect == null) {
 			canSelect = false;
@@ -148,11 +151,11 @@ public class LiferayArtifactSearchDialog extends DialogWrapper {
 		setOKActionEnabled(canSelect);
 	}
 
-	private LiferayArtifactSearchPanel myArtifactsPanel;
-	private LiferayArtifactSearchPanel myClassesPanel;
-	private final Map<Pair<String, String>, String> myManagedDependenciesMap = new HashMap<>();
-	private final Map<LiferayArtifactSearchPanel, Boolean> myOkButtonStates = new THashMap<>();
-	private List<MavenId> myResult = Collections.emptyList();
-	private TabbedPaneWrapper myTabbedPane;
+	private LiferayArtifactSearchPanel _artifactsPanel;
+	private LiferayArtifactSearchPanel _classesPanel;
+	private final Map<Pair<String, String>, String> _managedDependenciesMap = new HashMap<>();
+	private final Map<LiferayArtifactSearchPanel, Boolean> _okButtonStates = new THashMap<>();
+	private List<MavenId> _result = Collections.emptyList();
+	private TabbedPaneWrapper _tabbedPane;
 
 }

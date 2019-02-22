@@ -24,14 +24,10 @@ import com.intellij.psi.PsiFile;
 import com.liferay.ide.idea.ui.compoments.LiferayArtifactSearchDialog;
 import com.liferay.ide.idea.util.GradleUtil;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Modifier;
-
-import java.util.Collections;
 import java.util.List;
+import java.util.stream.Stream;
 
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.idea.maven.indices.MavenArtifactSearchDialog;
 import org.jetbrains.idea.maven.model.MavenId;
 
 /**
@@ -41,9 +37,13 @@ public class AddGradleDependencyActionHandler implements CodeInsightActionHandle
 
 	@Override
 	public void invoke(@NotNull final Project project, @NotNull final Editor editor, @NotNull final PsiFile file) {
-		if (!EditorModificationUtil.checkModificationAllowed(editor) ||
-			!FileModificationService.getInstance().preparePsiElementsForWrite(file)) {
+		if (!EditorModificationUtil.checkModificationAllowed(editor)) {
+			return;
+		}
 
+		FileModificationService fileModificationService = FileModificationService.getInstance();
+
+		if (!fileModificationService.preparePsiElementsForWrite(file)) {
 			return;
 		}
 
@@ -53,8 +53,10 @@ public class AddGradleDependencyActionHandler implements CodeInsightActionHandle
 			return;
 		}
 
-		String[] dependencies = mavenIds.stream().map(
-			AddGradleDependencyActionHandler::getMavenArtifactKey
+		Stream<MavenId> stream = mavenIds.stream();
+
+		String[] dependencies = stream.map(
+			AddGradleDependencyActionHandler::_getMavenArtifactKey
 		).toArray(
 			String[]::new
 		);
@@ -67,20 +69,21 @@ public class AddGradleDependencyActionHandler implements CodeInsightActionHandle
 		return false;
 	}
 
-	private static void append(StringBuilder builder, String part) {
+	private static void _append(StringBuilder builder, String part) {
 		if (builder.length() != 0) {
 			builder.append(':');
 		}
+
 		builder.append(part == null ? "" : part);
 	}
 
 	@NotNull
-	private static String getMavenArtifactKey(MavenId mavenId) {
+	private static String _getMavenArtifactKey(MavenId mavenId) {
 		StringBuilder builder = new StringBuilder();
 
-		append(builder, mavenId.getGroupId());
-		append(builder, mavenId.getArtifactId());
-		append(builder, mavenId.getVersion());
+		_append(builder, mavenId.getGroupId());
+		_append(builder, mavenId.getArtifactId());
+		_append(builder, mavenId.getVersion());
 
 		return builder.toString();
 	}

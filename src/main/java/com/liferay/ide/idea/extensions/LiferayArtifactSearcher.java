@@ -14,16 +14,21 @@
 
 package com.liferay.ide.idea.extensions;
 
+import static com.intellij.openapi.util.text.StringUtil.contains;
+import static com.intellij.openapi.util.text.StringUtil.tokenize;
+import static com.intellij.openapi.util.text.StringUtil.trimEnd;
+import static com.intellij.openapi.util.text.StringUtil.trimStart;
+
 import com.intellij.openapi.externalSystem.model.project.LibraryData;
 import com.intellij.openapi.project.Project;
 import com.intellij.util.containers.ContainerUtil;
+
 import com.liferay.ide.idea.util.LiferayWorkspaceUtil;
-import org.jetbrains.idea.maven.model.MavenArtifactInfo;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.intellij.openapi.util.text.StringUtil.*;
+import org.jetbrains.idea.maven.model.MavenArtifactInfo;
 
 /**
  * @author Charles Wu
@@ -33,6 +38,7 @@ public class LiferayArtifactSearcher extends Searcher<LiferayArtifactSearchResul
 	@Override
 	protected List<LiferayArtifactSearchResult> searchImpl(Project project, String pattern, int maxResult) {
 		List<String> parts = new ArrayList<>();
+
 		for (String each : tokenize(pattern, " :")) {
 			parts.add(trimStart(trimEnd(each, "*"), "*"));
 		}
@@ -46,12 +52,20 @@ public class LiferayArtifactSearcher extends Searcher<LiferayArtifactSearchResul
 			}
 
 			//matched getGroupId id
-			if (parts.size() < 1 || contains(libraryData.getGroupId(), parts.get(0))) {
+
+			if (parts.isEmpty() || contains(libraryData.getGroupId(), parts.get(0))) {
 				//matched artifact id
-				if (parts.size() < 2 || contains(libraryData.getArtifactId(), parts.get(1))) {
+
+				if ((parts.size() < 2) || contains(libraryData.getArtifactId(), parts.get(1))) {
 					LiferayArtifactSearchResult searchResult = new LiferayArtifactSearchResult();
-					searchResult.versions.add(new MavenArtifactInfo(libraryData.getGroupId(), libraryData.getArtifactId(), libraryData.getVersion(), "jar", null));
+
+					searchResult.versions.add(
+						new MavenArtifactInfo(
+							libraryData.getGroupId(), libraryData.getArtifactId(), libraryData.getVersion(), "jar",
+							null));
+
 					searchResults.add(searchResult);
+
 					if (++count >= maxResult) {
 						break;
 					}

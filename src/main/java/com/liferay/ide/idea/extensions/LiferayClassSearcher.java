@@ -14,23 +14,30 @@
 
 package com.liferay.ide.idea.extensions;
 
+import com.intellij.openapi.application.Application;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.roots.*;
+import com.intellij.openapi.roots.LibraryOrderEntry;
+import com.intellij.openapi.roots.OrderEntry;
+import com.intellij.openapi.roots.OrderRootType;
+import com.intellij.openapi.roots.ProjectFileIndex;
+import com.intellij.openapi.roots.ProjectRootManager;
 import com.intellij.openapi.roots.libraries.Library;
 import com.intellij.openapi.util.Computable;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiClass;
+import com.intellij.psi.PsiFile;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.search.PsiShortNamesCache;
-import org.jetbrains.annotations.Nullable;
-import org.jetbrains.idea.maven.model.MavenArtifactInfo;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import org.jetbrains.annotations.Nullable;
+import org.jetbrains.idea.maven.model.MavenArtifactInfo;
 
 /**
  * @author Charles Wu
@@ -39,37 +46,33 @@ public class LiferayClassSearcher extends Searcher<LiferayClassSearchResult> {
 
 	@Override
 	protected String makeSortKey(LiferayClassSearchResult result) {
-		return makeKey(result.className, result.versions.get(0));
+		return _makeKey(result.className, result.versions.get(0));
 	}
 
 	@Override
 	protected List<LiferayClassSearchResult> searchImpl(Project project, String pattern, int maxResult) {
 		PsiShortNamesCache psiShortNamesCache = PsiShortNamesCache.getInstance(project);
 
-		PsiClass[] psiClasses = ApplicationManager.getApplication().runReadAction(
-				(Computable<PsiClass[]>) () -> psiShortNamesCache.getClassesByName(pattern, GlobalSearchScope.allScope(project)));
-		return processResults(project, psiClasses);
-	}
+		Application application = ApplicationManager.getApplication();
 
-	private List<LiferayClassSearchResult> processResults(Project project,PsiClass[] psiClasses) {
-		return Stream.of(
-				psiClasses
-		).map(
-				psiClass -> extractArtifact(project, psiClass)
-		).filter(
-				Objects::nonNull
-		).collect(
-				Collectors.toList()
-		);
+		PsiClass[] psiClasses = application.runReadAction(
+			(Computable<PsiClass[]>)() -> psiShortNamesCache.getClassesByName(
+				pattern, GlobalSearchScope.allScope(project)));
+
+		return _processResults(project, psiClasses);
 	}
 
 	@Nullable
-	private LiferayClassSearchResult extractArtifact(Project project, PsiClass psiClass) {
-		ProjectFileIndex projectFileIndex = ProjectRootManager.getInstance(project).getFileIndex();
+	private LiferayClassSearchResult _extractPsiToArtifact(Project project, PsiClass psiClass) {
+		ProjectRootManager projectRootManager = ProjectRootManager.getInstance(project);
 
-		for (OrderEntry orderEntry : projectFileIndex.getOrderEntriesForFile(psiClass.getContainingFile().getVirtualFile())) {
+		ProjectFileIndex projectFileIndex = projectRootManager.getFileIndex();
+
+		PsiFile psiFile = psiClass.getContainingFile();
+
+		for (OrderEntry orderEntry : projectFileIndex.getOrderEntriesForFile(psiFile.getVirtualFile())) {
 			if (orderEntry instanceof LibraryOrderEntry) {
-				final LibraryOrderEntry libraryOrderEntry = (LibraryOrderEntry) orderEntry;
+				final LibraryOrderEntry libraryOrderEntry = (LibraryOrderEntry)orderEntry;
 
 				final Library library = libraryOrderEntry.getLibrary();
 
@@ -95,10 +98,12 @@ public class LiferayClassSearcher extends Searcher<LiferayClassSearchResult> {
 				result.packageName = psiClass.getQualifiedName();
 
 				String path = vf.getPath();
+
 				String[] split = path.split("/");
 
 				result.versions = Collections.singletonList(
-						new MavenArtifactInfo(split[split.length - 5], split[split.length - 4], split[split.length - 3], "jar", null));
+					new MavenArtifactInfo(
+						split[split.length - 5], split[split.length - 4], split[split.length - 3], "jar", null));
 
 				return result;
 			}
@@ -107,8 +112,20 @@ public class LiferayClassSearcher extends Searcher<LiferayClassSearchResult> {
 		return null;
 	}
 
-	private String makeKey(String className, MavenArtifactInfo info) {
+	private String _makeKey(String className, MavenArtifactInfo info) {
 		return className + " " + super.makeKey(info);
+	}
+
+	private List<LiferayClassSearchResult> _processResults(Project project, PsiClass[] psiClasses) {
+		return Stream.of(
+			psiClasses
+		).map(
+			psiClass -> _extractPsiToArtifact(project, psiClass)
+		).filter(
+			Objects::nonNull
+		).collect(
+			Collectors.toList()
+		);
 	}
 
 }

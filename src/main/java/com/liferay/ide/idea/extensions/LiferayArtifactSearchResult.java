@@ -14,9 +14,10 @@
 
 package com.liferay.ide.idea.extensions;
 
+import com.intellij.util.SmartList;
+
 import java.util.List;
 
-import com.intellij.util.SmartList;
 import org.jetbrains.idea.maven.model.MavenArtifactInfo;
 
 /**
