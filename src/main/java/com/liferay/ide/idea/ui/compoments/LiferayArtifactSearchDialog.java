@@ -51,11 +51,7 @@ public class LiferayArtifactSearchDialog extends DialogWrapper {
 
 	@Override
 	public JComponent getPreferredFocusedComponent() {
-		if (_tabbedPane.getSelectedIndex() == 0) {
-			return _artifactsPanel.getSearchField();
-		}
-
-		return _classesPanel.getSearchField();
+		return _artifactsPanel.getSearchField();
 	}
 
 	@NotNull
@@ -70,9 +66,7 @@ public class LiferayArtifactSearchDialog extends DialogWrapper {
 
 	@Override
 	protected void doOKAction() {
-		LiferayArtifactSearchPanel panel = _tabbedPane.getSelectedIndex() == 0 ? _artifactsPanel : _classesPanel;
-
-		_result = panel.getResult();
+		_result = _artifactsPanel.getResult();
 
 		super.doOKAction();
 	}
@@ -102,7 +96,6 @@ public class LiferayArtifactSearchDialog extends DialogWrapper {
 		init();
 
 		_artifactsPanel.scheduleSearch();
-		_classesPanel.scheduleSearch();
 	}
 
 	private void _initComponents(Project project, String initialText, boolean classMode) {
@@ -125,12 +118,10 @@ public class LiferayArtifactSearchDialog extends DialogWrapper {
 
 		_artifactsPanel = new LiferayArtifactSearchPanel(
 			project, !classMode ? initialText : "", false, listener, this, _managedDependenciesMap);
-		_classesPanel = new LiferayArtifactSearchPanel(
-			project, classMode ? initialText : "", true, listener, this, _managedDependenciesMap);
 
 		_tabbedPane.addTab("Search for artifact", _artifactsPanel);
-		_tabbedPane.addTab("Search for class name", _classesPanel);
-		_tabbedPane.setSelectedIndex(classMode ? 1 : 0);
+
+		_tabbedPane.setSelectedIndex(0);
 
 		JComponent component = _tabbedPane.getComponent();
 
@@ -152,7 +143,6 @@ public class LiferayArtifactSearchDialog extends DialogWrapper {
 	}
 
 	private LiferayArtifactSearchPanel _artifactsPanel;
-	private LiferayArtifactSearchPanel _classesPanel;
 	private final Map<Pair<String, String>, String> _managedDependenciesMap = new HashMap<>();
 	private final Map<LiferayArtifactSearchPanel, Boolean> _okButtonStates = new THashMap<>();
 	private List<MavenId> _result = Collections.emptyList();
