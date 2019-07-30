@@ -196,5 +196,15 @@
 		<manifest.parser.provider implementation="com.liferay.ide.idea.bnd.completion.header.OsgiManifestHeaderParsers"/>
 		<codeInsight.unresolvedReferenceQuickFixProvider implementation="com.liferay.ide.idea.extensions.GradleDependencyQuickFixProvider"/>
 		<inspectionToolProvider implementation="com.liferay.ide.idea.language.service.LiferayServiceXMLInspectionToolProvider"/>
+
+		<preloadingActivity implementation="com.liferay.ide.idea.language.lsp.BladeLanguageServerPreloadingActivity" id="com.liferay.ide.idea.language.lsp.BladeLanguageServerPreloadingActivity" />
+		<completion.contributor implementationClass="org.wso2.lsp4intellij.contributors.LSPCompletionContributor" id="LSPCompletionContributor" language="any"/>
 	</extensions>
+
+	<application-components>
+		<component>
+			<implementation-class>org.wso2.lsp4intellij.IntellijLanguageClient</implementation-class>
+		</component>
+	</application-components>
+
 </idea-plugin>
