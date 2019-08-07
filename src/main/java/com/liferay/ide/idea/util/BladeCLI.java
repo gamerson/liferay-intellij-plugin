@@ -24,7 +24,6 @@ import java.net.URL;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
 import java.util.Scanner;
 import java.util.jar.JarEntry;
 
@@ -37,7 +36,7 @@ import org.apache.tools.ant.taskdefs.Java;
  */
 public class BladeCLI {
 
-	public static String[] execute(String args) {
+	public static String[] execute(com.intellij.openapi.project.Project currentProject, String args) {
 		Project project = new Project();
 		Java javaTask = new Java();
 
@@ -45,11 +44,11 @@ public class BladeCLI {
 		javaTask.setFork(true);
 		javaTask.setFailonerror(true);
 
-		Properties properties = System.getProperties();
-
 		boolean needToCopy = true;
 
-		File temp = new File(properties.getProperty("user.home"), ".liferay-ide");
+		currentProject.getBasePath();
+
+		File temp = new File(currentProject.getBasePath(), com.intellij.openapi.project.Project.DIRECTORY_STORE_FOLDER);
 
 		File bladeJar = new File(temp, "blade.jar");
 
@@ -127,10 +126,10 @@ public class BladeCLI {
 		return lines.toArray(new String[0]);
 	}
 
-	public static synchronized String[] getProjectTemplates() {
+	public static synchronized String[] getProjectTemplates(com.intellij.openapi.project.Project currentProject) {
 		List<String> templateNames = new ArrayList<>();
 
-		String[] executeResult = execute("create -l");
+		String[] executeResult = execute(currentProject, "create -l");
 
 		for (String name : executeResult) {
 			String trimmedName = name.trim();

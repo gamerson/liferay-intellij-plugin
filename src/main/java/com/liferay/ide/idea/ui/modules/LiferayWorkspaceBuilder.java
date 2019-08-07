@@ -190,7 +190,7 @@ public abstract class LiferayWorkspaceBuilder extends ModuleBuilder {
 
 		component.setValue(WorkspaceConstants.WIZARD_LIFERAY_VERSION_FIELD, _liferayVersion);
 
-		BladeCLI.execute(sb.toString());
+		BladeCLI.execute(project, sb.toString());
 
 		if (_liferayProjectType.equals(LiferayProjectType.LIFERAY_GRADLE_WORKSPACE) && _enableTargetPlatform) {
 			try {

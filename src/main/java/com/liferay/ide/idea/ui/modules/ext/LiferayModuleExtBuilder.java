@@ -152,7 +152,7 @@ public class LiferayModuleExtBuilder extends ModuleBuilder {
 		sb.append(projectRoot.getName());
 		sb.append("\"");
 
-		BladeCLI.execute(sb.toString());
+		BladeCLI.execute(project, sb.toString());
 	}
 
 	private static final String _LIFERAY_EXT_MODULES = "Liferay Modules Ext";
