@@ -119,7 +119,9 @@ public class LiferayModuleWizardStep extends ModuleWizardStep {
 
 		String liferayVersion = LiferayWorkspaceUtil.getLiferayVersion(_project);
 
-		for (String type : BladeCLI.getProjectTemplates(project)) {
+		BladeCLI bladeCLI = new BladeCLI(project);
+
+		for (String type : bladeCLI.getProjectTemplates()) {
 			if (Objects.equals("fragment", type) || Objects.equals("modules-ext", type) ||
 				(Objects.equals("7.0", liferayVersion) && Objects.equals("social-bookmark", type))) {
 

@@ -36,21 +36,10 @@ import org.apache.tools.ant.taskdefs.Java;
  */
 public class BladeCLI {
 
-	public static String[] execute(com.intellij.openapi.project.Project currentProject, String args) {
-		Project project = new Project();
-		Java javaTask = new Java();
-
-		javaTask.setProject(project);
-		javaTask.setFork(true);
-		javaTask.setFailonerror(true);
-
-		boolean needToCopy = true;
-
-		currentProject.getBasePath();
-
+	public BladeCLI(com.intellij.openapi.project.Project currentProject) {
 		File temp = new File(currentProject.getBasePath(), com.intellij.openapi.project.Project.DIRECTORY_STORE_FOLDER);
 
-		File bladeJar = new File(temp, "blade.jar");
+		_bladeJar = new File(temp, "blade.jar");
 
 		ClassLoader bladeClassLoader = BladeCLI.class.getClassLoader();
 
@@ -63,11 +52,13 @@ public class BladeCLI {
 
 			Long bladeJarTimestamp = jarEntry.getTime();
 
-			if (bladeJar.exists()) {
-				Long destTimestamp = bladeJar.lastModified();
+			boolean needToCopy = true;
+
+			if (_bladeJar.exists()) {
+				Long destTimestamp = _bladeJar.lastModified();
 
 				if (destTimestamp < bladeJarTimestamp) {
-					bladeJar.delete();
+					_bladeJar.delete();
 				}
 				else {
 					needToCopy = false;
@@ -75,14 +66,22 @@ public class BladeCLI {
 			}
 
 			if (needToCopy) {
-				FileUtil.writeFile(bladeJar, in);
-				bladeJar.setLastModified(bladeJarTimestamp);
+				FileUtil.writeFile(_bladeJar, in);
+				_bladeJar.setLastModified(bladeJarTimestamp);
 			}
 		}
 		catch (IOException ioe) {
 		}
+	}
 
-		javaTask.setJar(bladeJar);
+	public String[] execute(String args) {
+		Project project = new Project();
+		Java javaTask = new Java();
+
+		javaTask.setProject(project);
+		javaTask.setFork(true);
+		javaTask.setFailonerror(true);
+		javaTask.setJar(_bladeJar);
 		javaTask.setArgs(args);
 
 		DefaultLogger logger = new DefaultLogger();
@@ -126,10 +125,10 @@ public class BladeCLI {
 		return lines.toArray(new String[0]);
 	}
 
-	public static synchronized String[] getProjectTemplates(com.intellij.openapi.project.Project currentProject) {
+	public synchronized String[] getProjectTemplates() {
 		List<String> templateNames = new ArrayList<>();
 
-		String[] executeResult = execute(currentProject, "create -l");
+		String[] executeResult = execute("create -l");
 
 		for (String name : executeResult) {
 			String trimmedName = name.trim();
@@ -144,5 +143,7 @@ public class BladeCLI {
 
 		return templateNames.toArray(new String[0]);
 	}
+
+	private File _bladeJar;
 
 }

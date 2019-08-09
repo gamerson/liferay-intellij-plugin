@@ -169,7 +169,9 @@ public class LiferayModuleBuilder extends ModuleBuilder {
 		sb.append(moduleDir.getName());
 		sb.append("\" ");
 
-		BladeCLI.execute(project, sb.toString());
+		BladeCLI bladeCLI = new BladeCLI(project);
+
+		bladeCLI.execute(sb.toString());
 
 		modifiableRootModel.addContentEntry(moduleDir);
 
