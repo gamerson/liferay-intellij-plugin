@@ -30,6 +30,7 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.ui.DocumentAdapter;
 
 import com.liferay.ide.idea.ui.modules.ext.LiferayModuleExtBuilder;
+import com.liferay.ide.idea.ui.modules.spring.LiferayModuleSpringMvcBuilder;
 import com.liferay.ide.idea.util.LiferayWorkspaceUtil;
 
 import java.io.File;
@@ -297,6 +298,9 @@ public class LiferayModuleNameLocationComponent {
 		else if (builder instanceof LiferayModuleExtBuilder) {
 			targetFolder = LiferayWorkspaceUtil.getModuleExtDir(_context.getProject());
 		}
+		else if (builder instanceof LiferayModuleSpringMvcBuilder) {
+			targetFolder = LiferayWorkspaceUtil.getWarsDir(_context.getProject());
+		}
 
 		if (liferayModuleBuilder != null) {
 			String templateType = liferayModuleBuilder.getType();
@@ -305,7 +309,7 @@ public class LiferayModuleNameLocationComponent {
 				Objects.equals("spring-mvc-portlet", templateType) || Objects.equals("war-hook", templateType) ||
 				Objects.equals("war-mvc-portlet", templateType)) {
 
-				targetFolder = "wars";
+				targetFolder = LiferayWorkspaceUtil.getWarsDir(_context.getProject());
 			}
 		}
 
