@@ -14,7 +14,6 @@
 
 package com.liferay.ide.idea.util;
 
-import com.intellij.ide.util.PropertiesComponent;
 import com.intellij.openapi.externalSystem.model.DataNode;
 import com.intellij.openapi.externalSystem.model.ExternalProjectInfo;
 import com.intellij.openapi.externalSystem.model.ProjectKeys;
@@ -27,6 +26,7 @@ import com.intellij.openapi.vfs.VirtualFile;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -86,18 +86,12 @@ public class LiferayWorkspaceUtil {
 
 	@Nullable
 	public static String getLiferayVersion(Project project) {
-		PropertiesComponent propertiesComponent = PropertiesComponent.getInstance(project);
-
-		String liferayVersion = propertiesComponent.getValue(WorkspaceConstants.WIZARD_LIFERAY_VERSION_FIELD);
-
-		if (liferayVersion != null) {
-			return liferayVersion;
-		}
+		String liferayVersion = WorkspaceConstants.LIFERAY_VERSIONS[0];
 
 		VirtualFile projectRoot = getWorkspaceVirtualFile(project);
 
 		if (projectRoot == null) {
-			return null;
+			return liferayVersion;
 		}
 
 		VirtualFile settingsVirtualFile = projectRoot.findFileByRelativePath("/.blade.properties");
@@ -105,10 +99,11 @@ public class LiferayWorkspaceUtil {
 		if (settingsVirtualFile != null) {
 			Properties props = new Properties();
 
-			try {
-				props.load(settingsVirtualFile.getInputStream());
+			try (InputStream inputStream = settingsVirtualFile.getInputStream()) {
+				props.load(inputStream);
 
-				liferayVersion = props.getProperty(WorkspaceConstants.BLADE_LIFERAY_VERSION_FIELD);
+				liferayVersion = props.getProperty(
+					WorkspaceConstants.BLADE_LIFERAY_VERSION_FIELD, WorkspaceConstants.LIFERAY_VERSIONS[0]);
 			}
 			catch (IOException ioe) {
 			}
@@ -221,6 +216,14 @@ public class LiferayWorkspaceUtil {
 		String location = project.getBasePath();
 
 		return _getGradleProperty(location, WorkspaceConstants.DEFAULT_TARGET_PLATFORM_VERSION_PROPERTY, null);
+	}
+
+	@Nullable
+	public static String getWarsDir(Project project) {
+		String location = project.getBasePath();
+
+		return _getGradleProperty(
+			location, WorkspaceConstants.DEFAULT_WARS_DIR_PROPERTY, WorkspaceConstants.DEFAULT_WARS_DIR);
 	}
 
 	@Nullable
