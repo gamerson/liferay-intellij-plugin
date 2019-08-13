@@ -80,35 +80,43 @@ import org.jetbrains.idea.maven.utils.MavenLog;
 public class LiferayArtifactSearchPanel extends JPanel {
 
 	public LiferayArtifactSearchPanel(
-		Project project, String initialText, boolean classMode, Listener listener, LiferayArtifactSearchDialog dialog,
+		Project project, String initialText, boolean classMode, Listener listener,
+		LiferayArtifactSearchDialog liferayArtifactSearchDialog,
 		Map<Pair<String, String>, String> managedDependenciesMap) {
 
 		_project = project;
 		_classMode = classMode;
 		_listener = listener;
-		_dialog = dialog;
+		_liferayArtifactSearchDialog = liferayArtifactSearchDialog;
 		_managedDependenciesMap = managedDependenciesMap;
 
 		_initComponents(initialText);
-		_alarm = new Alarm(Alarm.ThreadToUse.POOLED_THREAD, dialog.getDisposable());
+		_alarm = new Alarm(Alarm.ThreadToUse.POOLED_THREAD, liferayArtifactSearchDialog.getDisposable());
 	}
 
 	@NotNull
 	public List<MavenId> getResult() {
 		List<MavenId> result = new ArrayList<>();
 
-		for (TreePath each : _resultList.getSelectionPaths()) {
-			Object sel = each.getLastPathComponent();
-			MavenArtifactInfo info;
+		for (TreePath treePath : _resultList.getSelectionPaths()) {
+			Object lastPathComponent = treePath.getLastPathComponent();
+			MavenArtifactInfo mavenArtifactInfo;
 
-			if (sel instanceof MavenArtifactInfo) {
-				info = (MavenArtifactInfo)sel;
+			if (lastPathComponent instanceof MavenArtifactInfo) {
+				mavenArtifactInfo = (MavenArtifactInfo)lastPathComponent;
 			}
 			else {
-				info = ((LiferayArtifactSearchResult)sel).versions.get(0);
+				LiferayArtifactSearchResult liferayArtifactSearchResult =
+					(LiferayArtifactSearchResult)lastPathComponent;
+
+				List<MavenArtifactInfo> versions = liferayArtifactSearchResult.versions;
+
+				mavenArtifactInfo = versions.get(0);
 			}
 
-			result.add(new MavenId(info.getGroupId(), info.getArtifactId(), info.getVersion()));
+			result.add(
+				new MavenId(
+					mavenArtifactInfo.getGroupId(), mavenArtifactInfo.getArtifactId(), mavenArtifactInfo.getVersion()));
 		}
 
 		return result;
@@ -130,7 +138,7 @@ public class LiferayArtifactSearchPanel extends JPanel {
 		_alarm.addRequest(
 			() -> {
 				try {
-					_doSearch(text);
+					_search(text);
 				}
 				catch (Throwable e) {
 					MavenLog.LOG.warn(e);
@@ -141,36 +149,11 @@ public class LiferayArtifactSearchPanel extends JPanel {
 
 	public interface Listener {
 
-		public void canSelectStateChanged(@NotNull LiferayArtifactSearchPanel from, boolean canSelect);
+		public void canSelectStateChanged(
+			@NotNull LiferayArtifactSearchPanel liferayArtifactSearchPanel, boolean canSelect);
 
 		public void itemSelected();
 
-	}
-
-	private void _doSearch(String searchText) {
-		Searcher<? extends LiferayArtifactSearchResult> searcher =
-			_classMode ? new LiferayClassSearcher() : new LiferayArtifactSearcher();
-
-		List<? extends LiferayArtifactSearchResult> result = searcher.search(_project, searchText, _MAX_RESULT);
-
-		_resortUsingDependencyVersionMap(result);
-
-		final TreeModel model = new MyTreeModel(result);
-
-		SwingUtilities.invokeLater(
-			() -> {
-				if (!_dialog.isVisible()) {
-					return;
-				}
-
-				StatusText text = _resultList.getEmptyText();
-
-				text.setText("No results");
-
-				_resultList.setModel(model);
-				_resultList.setSelectionRow(0);
-				_resultList.setPaintBusy(false);
-			});
 	}
 
 	private void _initComponents(String initialText) {
@@ -186,13 +169,13 @@ public class LiferayArtifactSearchPanel extends JPanel {
 		_resultList.setShowsRootHandles(true);
 		_resultList.setModel(null);
 
-		MyArtifactCellRenderer renderer;
+		LiferayArtifactCellRenderer renderer;
 
 		if (_classMode) {
-			renderer = new MyClassCellRenderer(_resultList);
+			renderer = new LiferayClassCellRenderer(_resultList);
 		}
 		else {
-			renderer = new MyArtifactCellRenderer(_resultList);
+			renderer = new LiferayArtifactCellRenderer(_resultList);
 		}
 
 		_resultList.setCellRenderer(renderer);
@@ -290,11 +273,11 @@ public class LiferayArtifactSearchPanel extends JPanel {
 				final TreePath path = _resultList.getPathForLocation(event.getX(), event.getY());
 
 				if ((path != null) && _resultList.isPathSelected(path)) {
-					Object sel = path.getLastPathComponent();
+					Object lastPathComponent = path.getLastPathComponent();
 
 					TreeModel treeModel = _resultList.getModel();
 
-					if ((sel != null) && treeModel.isLeaf(sel)) {
+					if ((lastPathComponent != null) && treeModel.isLeaf(lastPathComponent)) {
 						_listener.itemSelected();
 
 						return true;
@@ -318,42 +301,70 @@ public class LiferayArtifactSearchPanel extends JPanel {
 			final String managedVersion = _managedDependenciesMap.get(
 				Pair.create(artifactInfo.getGroupId(), artifactInfo.getArtifactId()));
 
-			if (managedVersion != null) {
-				searchResult.versions.sort(
-					(o1, o2) -> {
-						String v1 = o1.getVersion();
-						String v2 = o2.getVersion();
-
-						if (Comparing.equal(v1, v2)) {
-							return 0;
-						}
-
-						if (managedVersion.equals(v1)) {
-							return -1;
-						}
-
-						if (managedVersion.equals(v2)) {
-							return 1;
-						}
-
-						return 0;
-					});
+			if (managedVersion == null) {
+				return;
 			}
+
+			searchResult.versions.sort(
+				(o1, o2) -> {
+					String v1 = o1.getVersion();
+					String v2 = o2.getVersion();
+
+					if (Comparing.equal(v1, v2)) {
+						return 0;
+					}
+
+					if (managedVersion.equals(v1)) {
+						return -1;
+					}
+
+					if (managedVersion.equals(v2)) {
+						return 1;
+					}
+
+					return 0;
+				});
 		}
+	}
+
+	private void _search(String searchText) {
+		Searcher<? extends LiferayArtifactSearchResult> searcher =
+			_classMode ? new LiferayClassSearcher() : new LiferayArtifactSearcher();
+
+		List<? extends LiferayArtifactSearchResult> result = searcher.search(_project, searchText, _MAX_RESULT);
+
+		_resortUsingDependencyVersionMap(result);
+
+		final TreeModel model = new LiferayTreeModel(result);
+
+		SwingUtilities.invokeLater(
+			() -> {
+				if (!_liferayArtifactSearchDialog.isVisible()) {
+					return;
+				}
+
+				StatusText text = _resultList.getEmptyText();
+
+				text.setText("No results");
+
+				_resultList.setModel(model);
+				_resultList.setSelectionRow(0);
+				_resultList.setPaintBusy(false);
+			});
 	}
 
 	private static final int _MAX_RESULT = 1000;
 
 	private final Alarm _alarm;
 	private final boolean _classMode;
-	private final LiferayArtifactSearchDialog _dialog;
+	private final LiferayArtifactSearchDialog _liferayArtifactSearchDialog;
 	private final Listener _listener;
 	private final Map<Pair<String, String>, String> _managedDependenciesMap;
 	private final Project _project;
 	private Tree _resultList;
 	private JTextField _searchField;
 
-	private static class MyTreeModel implements TreeModel {
+	private static class LiferayTreeModel implements TreeModel {
 
 		@Override
 		public void addTreeModelListener(TreeModelListener l) {
@@ -361,7 +372,9 @@ public class LiferayArtifactSearchPanel extends JPanel {
 
 		@Override
 		public Object getChild(Object parent, int index) {
-			return getList(parent).get(index);
+			List list = getList(parent);
+
+			return list.get(index);
 		}
 
 		@Override
@@ -375,7 +388,9 @@ public class LiferayArtifactSearchPanel extends JPanel {
 
 		@Override
 		public int getIndexOfChild(Object parent, Object child) {
-			return getList(parent).indexOf(child);
+			List list = getList(parent);
+
+			return list.indexOf(child);
 		}
 
 		public List getList(Object parent) {
@@ -384,7 +399,9 @@ public class LiferayArtifactSearchPanel extends JPanel {
 			}
 
 			if (parent instanceof LiferayArtifactSearchResult) {
-				return ((LiferayArtifactSearchResult)parent).versions;
+				LiferayArtifactSearchResult liferayArtifactSearchResult = (LiferayArtifactSearchResult)parent;
+
+				return liferayArtifactSearchResult.versions;
 			}
 
 			return null;
@@ -412,7 +429,7 @@ public class LiferayArtifactSearchPanel extends JPanel {
 		public void valueForPathChanged(TreePath path, Object newValue) {
 		}
 
-		private MyTreeModel(List<? extends LiferayArtifactSearchResult> items) {
+		private LiferayTreeModel(List<? extends LiferayArtifactSearchResult> items) {
 			_items = items;
 		}
 
@@ -420,7 +437,7 @@ public class LiferayArtifactSearchPanel extends JPanel {
 
 	}
 
-	private class MyArtifactCellRenderer extends JPanel implements TreeCellRenderer {
+	private class LiferayArtifactCellRenderer extends JPanel implements TreeCellRenderer {
 
 		@Override
 		public Component getTreeCellRendererComponent(
@@ -443,12 +460,12 @@ public class LiferayArtifactSearchPanel extends JPanel {
 				formatSearchResult(tree, (LiferayArtifactSearchResult)value, selected);
 			}
 			else if (value instanceof MavenArtifactInfo) {
-				MavenArtifactInfo info = (MavenArtifactInfo)value;
+				MavenArtifactInfo mavenArtifactInfo = (MavenArtifactInfo)value;
 
-				String version = info.getVersion();
+				String version = mavenArtifactInfo.getVersion();
 
 				String managedVersion = _managedDependenciesMap.get(
-					Pair.create(info.getGroupId(), info.getArtifactId()));
+					Pair.create(mavenArtifactInfo.getGroupId(), mavenArtifactInfo.getArtifactId()));
 
 				if ((managedVersion != null) && managedVersion.equals(version)) {
 					leftComponent.append(version, SimpleTextAttributes.REGULAR_BOLD_ATTRIBUTES);
@@ -469,10 +486,10 @@ public class LiferayArtifactSearchPanel extends JPanel {
 		}
 
 		protected void formatSearchResult(JTree tree, LiferayArtifactSearchResult searchResult, boolean selected) {
-			MavenArtifactInfo info = searchResult.versions.get(0);
+			MavenArtifactInfo mavenArtifactInfo = searchResult.versions.get(0);
 			leftComponent.setIcon(AllIcons.Nodes.PpLib);
 
-			appendArtifactInfo(leftComponent, info, selected);
+			appendArtifactInfo(leftComponent, mavenArtifactInfo, selected);
 		}
 
 		protected SimpleTextAttributes getGrayAttributes(boolean selected) {
@@ -486,7 +503,7 @@ public class LiferayArtifactSearchPanel extends JPanel {
 		protected SimpleColoredComponent leftComponent = new SimpleColoredComponent();
 		protected SimpleColoredComponent rightComponent = new SimpleColoredComponent();
 
-		private MyArtifactCellRenderer(final Tree tree) {
+		private LiferayArtifactCellRenderer(final Tree tree) {
 			leftComponent.setOpaque(false);
 			rightComponent.setOpaque(false);
 			leftComponent.setIconOpaque(false);
@@ -542,10 +559,10 @@ public class LiferayArtifactSearchPanel extends JPanel {
 						JScrollPane scrollPane = JBScrollPane.findScrollPane(tree);
 
 						if (scrollPane != null) {
-							JScrollBar sb = scrollPane.getVerticalScrollBar();
+							JScrollBar scrollBar = scrollPane.getVerticalScrollBar();
 
-							if (sb != null) {
-								width -= sb.getWidth();
+							if (scrollBar != null) {
+								width -= scrollBar.getWidth();
 							}
 						}
 
@@ -557,21 +574,21 @@ public class LiferayArtifactSearchPanel extends JPanel {
 
 	}
 
-	private class MyClassCellRenderer extends MyArtifactCellRenderer {
+	private class LiferayClassCellRenderer extends LiferayArtifactCellRenderer {
 
 		@Override
 		protected void formatSearchResult(JTree tree, LiferayArtifactSearchResult searchResult, boolean selected) {
-			LiferayClassSearchResult classResult = (LiferayClassSearchResult)searchResult;
-			MavenArtifactInfo info = searchResult.versions.get(0);
+			LiferayClassSearchResult liferayClassSearchResult = (LiferayClassSearchResult)searchResult;
+			MavenArtifactInfo mavenArtifactInfo = searchResult.versions.get(0);
 
 			leftComponent.setIcon(AllIcons.Nodes.Class);
-			leftComponent.append(classResult.className, SimpleTextAttributes.REGULAR_ATTRIBUTES);
-			leftComponent.append(" (" + classResult.packageName + ")", getGrayAttributes(selected));
+			leftComponent.append(liferayClassSearchResult.className, SimpleTextAttributes.REGULAR_ATTRIBUTES);
+			leftComponent.append(" (" + liferayClassSearchResult.packageName + ")", getGrayAttributes(selected));
 
-			appendArtifactInfo(rightComponent, info, selected);
+			appendArtifactInfo(rightComponent, mavenArtifactInfo, selected);
 		}
 
-		private MyClassCellRenderer(Tree tree) {
+		private LiferayClassCellRenderer(Tree tree) {
 			super(tree);
 		}
 

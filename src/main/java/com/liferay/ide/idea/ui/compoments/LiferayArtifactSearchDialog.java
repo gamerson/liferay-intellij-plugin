@@ -51,7 +51,7 @@ public class LiferayArtifactSearchDialog extends DialogWrapper {
 
 	@Override
 	public JComponent getPreferredFocusedComponent() {
-		return _artifactsPanel.getSearchField();
+		return _liferayArtifactSearchPanel.getSearchField();
 	}
 
 	@NotNull
@@ -66,7 +66,7 @@ public class LiferayArtifactSearchDialog extends DialogWrapper {
 
 	@Override
 	protected void doOKAction() {
-		_result = _artifactsPanel.getResult();
+		_result = _liferayArtifactSearchPanel.getResult();
 
 		super.doOKAction();
 	}
@@ -95,7 +95,7 @@ public class LiferayArtifactSearchDialog extends DialogWrapper {
 		_updateOkButtonState();
 		init();
 
-		_artifactsPanel.scheduleSearch();
+		_liferayArtifactSearchPanel.scheduleSearch();
 	}
 
 	private void _initComponents(Project project, String initialText, boolean classMode) {
@@ -104,8 +104,10 @@ public class LiferayArtifactSearchDialog extends DialogWrapper {
 		LiferayArtifactSearchPanel.Listener listener = new LiferayArtifactSearchPanel.Listener() {
 
 			@Override
-			public void canSelectStateChanged(@NotNull LiferayArtifactSearchPanel from, boolean canSelect) {
-				_okButtonStates.put(from, canSelect);
+			public void canSelectStateChanged(
+				@NotNull LiferayArtifactSearchPanel liferayArtifactSearchPanel, boolean canSelect) {
+
+				_okButtonStates.put(liferayArtifactSearchPanel, canSelect);
 				_updateOkButtonState();
 			}
 
@@ -116,10 +118,10 @@ public class LiferayArtifactSearchDialog extends DialogWrapper {
 
 		};
 
-		_artifactsPanel = new LiferayArtifactSearchPanel(
+		_liferayArtifactSearchPanel = new LiferayArtifactSearchPanel(
 			project, !classMode ? initialText : "", false, listener, this, _managedDependenciesMap);
 
-		_tabbedPane.addTab("Search for artifact", _artifactsPanel);
+		_tabbedPane.addTab("Search for artifact", _liferayArtifactSearchPanel);
 
 		_tabbedPane.setSelectedIndex(0);
 
@@ -142,7 +144,7 @@ public class LiferayArtifactSearchDialog extends DialogWrapper {
 		setOKActionEnabled(canSelect);
 	}
 
-	private LiferayArtifactSearchPanel _artifactsPanel;
+	private LiferayArtifactSearchPanel _liferayArtifactSearchPanel;
 	private final Map<Pair<String, String>, String> _managedDependenciesMap = new HashMap<>();
 	private final Map<LiferayArtifactSearchPanel, Boolean> _okButtonStates = new THashMap<>();
 	private List<MavenId> _result = Collections.emptyList();

@@ -36,7 +36,7 @@ import org.jetbrains.idea.maven.model.MavenId;
 public class AddGradleDependencyActionHandler implements CodeInsightActionHandler {
 
 	@Override
-	public void invoke(@NotNull final Project project, @NotNull final Editor editor, @NotNull final PsiFile file) {
+	public void invoke(@NotNull Project project, @NotNull Editor editor, @NotNull PsiFile file) {
 		if (!EditorModificationUtil.checkModificationAllowed(editor)) {
 			return;
 		}
@@ -74,7 +74,7 @@ public class AddGradleDependencyActionHandler implements CodeInsightActionHandle
 			builder.append(':');
 		}
 
-		builder.append(part == null ? "" : part);
+		builder.append((part == null) ? "" : part);
 	}
 
 	@NotNull
