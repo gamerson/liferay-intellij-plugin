@@ -23,6 +23,7 @@ import com.intellij.openapi.externalSystem.model.project.ProjectData;
 import com.intellij.openapi.externalSystem.service.project.ProjectDataManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.projectRoots.impl.JavaHomeFinder;
+import com.intellij.openapi.util.SystemInfo;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -33,6 +34,10 @@ import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.StringReader;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -45,6 +50,7 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import org.gradle.tooling.BuildLauncher;
 import org.gradle.tooling.GradleConnector;
@@ -329,7 +335,38 @@ public interface LiferayWorkspaceSupport {
 
 		List<String> javaHomePaths = JavaHomeFinder.suggestHomePaths();
 
+		File javaHomeFile = null;
+
 		if (javaHomePaths.isEmpty()) {
+			String pathEnv = System.getenv("PATH");
+
+			String[] paths = pathEnv.split(Pattern.quote(File.pathSeparator));
+
+			for (String pathValue : paths) {
+				Path path = Paths.get(pathValue);
+
+				Path javaPath = path.resolve("java");
+
+				if (Files.exists(javaPath)) {
+					javaHomeFile = javaPath.toFile();
+
+					javaHomeFile = javaHomeFile.getParentFile();
+
+					javaHomeFile = javaHomeFile.getParentFile();
+
+					break;
+				}
+			}
+
+			if (javaHomeFile == null) {
+				javaHomeFile = new File(System.getProperty("java.home"));
+			}
+		}
+		else {
+			javaHomeFile = new File(javaHomePaths.get(0));
+		}
+
+		if (!javaHomeFile.exists()) {
 			return Collections.emptyList();
 		}
 
@@ -345,7 +382,7 @@ public interface LiferayWorkspaceSupport {
 
 		OutputStream outputStream = new ByteArrayOutputStream();
 
-		build = build.setJavaHome(new File(javaHomePaths.get(0)));
+		build = build.setJavaHome(javaHomeFile);
 
 		build = build.forTasks("dependencyManagement");
 
