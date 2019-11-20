@@ -63,7 +63,10 @@ public abstract class AbstractLiferayGradleTaskAction extends AbstractLiferayAct
 		_taskName = taskName;
 	}
 
-	protected void afterTask(VirtualFile projectDir) {
+	protected void afterTask(Project project) {
+	}
+
+	protected void beforeTask(Project project) {
 	}
 
 	protected boolean continuous() {
@@ -72,6 +75,8 @@ public abstract class AbstractLiferayGradleTaskAction extends AbstractLiferayAct
 
 	protected RunnerAndConfigurationSettings doExecute(AnActionEvent anActionEvent) {
 		Project project = anActionEvent.getRequiredData(CommonDataKeys.PROJECT);
+
+		beforeTask(project);
 
 		final VirtualFile projectDir = getWorkingDirectory(anActionEvent);
 
@@ -97,7 +102,7 @@ public abstract class AbstractLiferayGradleTaskAction extends AbstractLiferayAct
 
 				@Override
 				public void onSuccess() {
-					afterTask(projectDir);
+					afterTask(project);
 				}
 
 			},
