@@ -19,6 +19,7 @@ import com.intellij.openapi.externalSystem.service.execution.ProgressExecutionMo
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleUtil;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.project.ProjectUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 
 import com.liferay.ide.idea.server.gogo.GogoTelnetClient;
@@ -57,7 +58,9 @@ public class WatchGradleModuleAction extends AbstractLiferayGradleTaskAction {
 	}
 
 	@Override
-	protected void afterTask(VirtualFile projectDir) {
+	protected void afterTask(Project project) {
+		VirtualFile projectDir = ProjectUtil.guessProjectDir(project);
+
 		List<Path> bndPaths = _getBndPaths(projectDir);
 
 		if (bndPaths.isEmpty()) {
