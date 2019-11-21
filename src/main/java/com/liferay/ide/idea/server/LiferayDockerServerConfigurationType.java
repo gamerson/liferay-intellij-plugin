@@ -19,17 +19,20 @@ import com.intellij.execution.configurations.ConfigurationType;
 import com.intellij.execution.configurations.ConfigurationTypeBase;
 import com.intellij.execution.configurations.RunConfiguration;
 import com.intellij.openapi.project.Project;
+
 import icons.LiferayIcons;
+
 import org.jetbrains.annotations.NotNull;
 
 /**
- * @author Terry Jia
+ * @author Simon jiang
  */
 public class LiferayDockerServerConfigurationType extends ConfigurationTypeBase implements ConfigurationType {
 
 	public LiferayDockerServerConfigurationType() {
 		super(
-			"LiferayDockerServerConfiguration", "Liferay Docker Server", "Run or Debug a Liferay Docker Server", LiferayIcons.LIFERAY_ICON);
+			"LiferayDockerServerConfiguration", "Liferay Docker Server", "Run or Debug a Liferay Docker Server",
+			LiferayIcons.LIFERAY_ICON);
 
 		addFactory(
 			new ConfigurationFactory(this) {

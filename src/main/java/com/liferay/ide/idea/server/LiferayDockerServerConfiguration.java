@@ -1,16 +1,44 @@
+/**
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
+ *
+ * This library is free software; you can redistribute it and/or modify it under
+ * the terms of the GNU Lesser General Public License as published by the Free
+ * Software Foundation; either version 2.1 of the License, or (at your option)
+ * any later version.
+ *
+ * This library is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
+ * details.
+ */
+
 package com.liferay.ide.idea.server;
+
+import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.command.ListContainersCmd;
+import com.github.dockerjava.api.command.RemoveContainerCmd;
+import com.github.dockerjava.api.model.Container;
+
+import com.google.common.collect.Lists;
 
 import com.intellij.diagnostic.logging.LogConfigurationPanel;
 import com.intellij.execution.CommonProgramRunConfigurationParameters;
 import com.intellij.execution.ExecutionBundle;
+import com.intellij.execution.ExecutionException;
+import com.intellij.execution.Executor;
 import com.intellij.execution.JavaRunConfigurationExtensionManager;
 import com.intellij.execution.configuration.EnvironmentVariablesComponent;
 import com.intellij.execution.configurations.ConfigurationFactory;
 import com.intellij.execution.configurations.JavaRunConfigurationModule;
+import com.intellij.execution.configurations.LocatableConfigurationBase;
+import com.intellij.execution.configurations.RunConfiguration;
+import com.intellij.execution.configurations.RunProfileState;
 import com.intellij.execution.configurations.RuntimeConfigurationException;
 import com.intellij.execution.configurations.SearchScopeProvidingRunProfile;
+import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.execution.util.ProgramParametersUtil;
-import com.intellij.openapi.externalSystem.model.ProjectSystemId;
+import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.externalSystem.model.execution.ExternalSystemTaskExecutionSettings;
 import com.intellij.openapi.externalSystem.service.execution.ExternalSystemRunConfiguration;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.options.SettingsEditor;
@@ -20,214 +48,305 @@ import com.intellij.openapi.util.InvalidDataException;
 import com.intellij.openapi.util.WriteExternalException;
 import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.util.text.StringUtil;
+import com.intellij.openapi.wm.ToolWindowId;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.search.GlobalSearchScopes;
 import com.intellij.util.xmlb.SkipDefaultsSerializationFilter;
 import com.intellij.util.xmlb.XmlSerializer;
 import com.intellij.util.xmlb.XmlSerializerUtil;
+
+import com.liferay.ide.idea.util.CoreUtil;
+import com.liferay.ide.idea.util.LiferayDockerClient;
+import com.liferay.ide.idea.util.LiferayWorkspaceSupport;
+import com.liferay.ide.idea.util.ListUtil;
+
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
-import org.assertj.core.util.Lists;
+
 import org.jdom.Element;
+
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.plugins.gradle.util.GradleConstants;
 
-public class LiferayDockerServerConfiguration extends ExternalSystemRunConfiguration implements CommonProgramRunConfigurationParameters, SearchScopeProvidingRunProfile{
-
+/**
+ * @author Simon Jiang
+ */
+public class LiferayDockerServerConfiguration
+	extends LocatableConfigurationBase
+	implements CommonProgramRunConfigurationParameters, SearchScopeProvidingRunProfile {
 
 	public LiferayDockerServerConfiguration(Project project, ConfigurationFactory factory, String name) {
-            super(ProjectSystemId.IDE, project, factory, name);
+		super(project, factory, name);
 
-            _javaRunConfigurationModule = new JavaRunConfigurationModule(project, true);
-        }
+		_project = project;
+		_factory = factory;
+		_name = name;
+		_javaRunConfigurationModule = new JavaRunConfigurationModule(project, true);
+	}
 
-        @Override
-        public void checkConfiguration() throws RuntimeConfigurationException {
-            ProgramParametersUtil.checkWorkingDirectoryExist(this, getProject(), null);
+	@Override
+	public void checkConfiguration() throws RuntimeConfigurationException {
+		ProgramParametersUtil.checkWorkingDirectoryExist(this, getProject(), null);
 
-            JavaRunConfigurationExtensionManager.checkConfigurationIsValid(this);
-        }
+		if (LiferayWorkspaceSupport.isValidGradleWorkspaceLocation(_liferayDockerServerConfig.workspaceLocation)) {
+			throw new RuntimeConfigurationException(
+				"Please set correct workspace project location", "Invalid workspace project location");
+		}
 
-        @Override
-        public ExternalSystemRunConfiguration clone() {
-            LiferayDockerServerConfiguration clone = (LiferayDockerServerConfiguration)super.clone();
+		if (CoreUtil.isNullOrEmpty(_liferayDockerServerConfig.dockerImageId)) {
+			throw new RuntimeConfigurationException("Please set correct docker image id", "Invalid docker image id");
+		}
 
-            clone.setConfig(XmlSerializerUtil.createCopy(_liferayDockerServerConfig));
+		if (CoreUtil.isNullOrEmpty(_liferayDockerServerConfig.dockerContainerId)) {
+			throw new RuntimeConfigurationException(
+				"Please set correct docker container id", "Invalid docker container id");
+		}
+	}
 
-            JavaRunConfigurationModule configurationModule = new JavaRunConfigurationModule(getProject(), true);
+	@Override
+	public void checkSettingsBeforeRun() throws RuntimeConfigurationException {
+	}
 
-            configurationModule.setModule(_javaRunConfigurationModule.getModule());
+	@Override
+	public LiferayDockerServerConfiguration clone() {
+		LiferayDockerServerConfiguration clone = (LiferayDockerServerConfiguration)super.clone();
 
-            clone.setConfigurationModule(configurationModule);
+		clone.setConfig(XmlSerializerUtil.createCopy(_liferayDockerServerConfig));
 
-            clone.setEnvs(new LinkedHashMap<>(clone.getEnvs()));
+		JavaRunConfigurationModule configurationModule = new JavaRunConfigurationModule(getProject(), true);
 
-            return clone;
-        }
+		configurationModule.setModule(_javaRunConfigurationModule.getModule());
 
-        public String getBundleType() {
-            return _liferayDockerServerConfig.buildType;
-        }
+		clone.setConfigurationModule(configurationModule);
 
-        @NotNull
-        @Override
-        public SettingsEditor<ExternalSystemRunConfiguration> getConfigurationEditor() {
-            final SettingsEditor<ExternalSystemRunConfiguration> editor = super.getConfigurationEditor();
-            if (editor instanceof SettingsEditorGroup) {
-                SettingsEditorGroup<LiferayDockerServerConfiguration> group = (SettingsEditorGroup)editor;;
+		clone.setEnvs(new LinkedHashMap<>(clone.getEnvs()));
 
-                String title = ExecutionBundle.message("run.configuration.configuration.tab.title");
+		return clone;
+	}
 
-                group.addEditor(title, new LiferayDockerServerConfigurable(getProject()));
+	@NotNull
+	@Override
+	public SettingsEditor<? extends RunConfiguration> getConfigurationEditor() {
+		SettingsEditorGroup<LiferayDockerServerConfiguration> group = new SettingsEditorGroup<>();
+		String title = ExecutionBundle.message("run.configuration.configuration.tab.title");
 
-                JavaRunConfigurationExtensionManager javaRunConfigurationExtensionManager =
-                        JavaRunConfigurationExtensionManager.getInstance();
+		group.addEditor(title, new LiferayDockerServerConfigurationEditor(getProject()));
 
-                javaRunConfigurationExtensionManager.appendEditors(this, group);
+		JavaRunConfigurationExtensionManager javaRunConfigurationExtensionManager =
+			JavaRunConfigurationExtensionManager.getInstance();
 
-                group.addEditor(ExecutionBundle.message("logs.tab.title"), new LogConfigurationPanel<>());
-            }
-            return editor;
-        }
+		javaRunConfigurationExtensionManager.appendEditors(this, group);
 
-        @NotNull
-        @Override
-        public Map<String, String> getEnvs() {
-            return _envs;
-        }
+		group.addEditor(ExecutionBundle.message("logs.tab.title"), new LogConfigurationPanel<>());
 
-        public Module getModule() {
-            return _javaRunConfigurationModule.getModule();
-        }
+		return group;
+	}
 
-        @NotNull
-        public Module[] getModules() {
-            Module module = _javaRunConfigurationModule.getModule();
+	public String getDockerContainerId() {
+		return _liferayDockerServerConfig.dockerContainerId;
+	}
 
-            if (module != null) {
-                return new Module[] {module};
-            }
+	public String getDockerImageId() {
+		return _liferayDockerServerConfig.dockerImageId;
+	}
 
-            return Module.EMPTY_ARRAY;
-        }
+	@NotNull
+	@Override
+	public Map<String, String> getEnvs() {
+		return _envs;
+	}
 
-        @Nullable
-        @Override
-        public String getProgramParameters() {
-            return null;
-        }
+	public Module getModule() {
+		return _javaRunConfigurationModule.getModule();
+	}
 
-        @Nullable
-        @Override
-        public GlobalSearchScope getSearchScope() {
-            return GlobalSearchScopes.executionScope(Lists.newArrayList(getModules()));
-        }
+	@NotNull
+	public Module[] getModules() {
+		Module module = _javaRunConfigurationModule.getModule();
 
-        @Nullable
-        @Override
-        public String getWorkingDirectory() {
-            return null;
-        }
+		if (module != null) {
+			return new Module[] {module};
+		}
 
-        @Override
-        public boolean isPassParentEnvs() {
-            return _liferayDockerServerConfig.passParentEnvironments;
-        }
+		return Module.EMPTY_ARRAY;
+	}
 
-        @Override
-        public void onNewConfigurationCreated() {
-            super.onNewConfigurationCreated();
+	@Nullable
+	@Override
+	public String getProgramParameters() {
+		return null;
+	}
 
-            if (StringUtil.isEmpty(getWorkingDirectory())) {
-                String baseDir = FileUtil.toSystemIndependentName(StringUtil.notNullize(getProject().getBasePath()));
+	@Nullable
+	@Override
+	public GlobalSearchScope getSearchScope() {
+		return GlobalSearchScopes.executionScope(Lists.newArrayList(getModules()));
+	}
 
-                setWorkingDirectory(baseDir);
-            }
-        }
+	@Nullable
+	@Override
+	public RunProfileState getState(@NotNull Executor executor, @NotNull ExecutionEnvironment env)
+		throws ExecutionException {
 
-        @Override
-        public void readExternal(Element element) throws InvalidDataException {
-            super.readExternal(element);
+		ExternalSystemTaskExecutionSettings settings = new ExternalSystemTaskExecutionSettings();
 
-            JavaRunConfigurationExtensionManager javaRunConfigurationExtensionManager =
-                    JavaRunConfigurationExtensionManager.getInstance();
+		String debugExecutorId = ToolWindowId.DEBUG;
 
-            javaRunConfigurationExtensionManager.readExternal(this, element);
+		settings.setExternalProjectPath(_project.getBasePath());
+		settings.setExternalSystemIdString(GradleConstants.SYSTEM_ID.toString());
+		settings.setScriptParameters(null);
 
-            XmlSerializer.deserializeInto(_liferayDockerServerConfig, element);
-            EnvironmentVariablesComponent.readExternal(element, getEnvs());
+		ExternalSystemRunConfiguration externalSystemRunConfiguration = new ExternalSystemRunConfiguration(
+			GradleConstants.SYSTEM_ID, _project, _factory, _name);
 
-            _javaRunConfigurationModule.readExternal(element);
-        }
+		List<String> taskNames = new ArrayList<>();
 
-        public void setBundleType(String bundleType) {
-            _liferayDockerServerConfig.buildType = bundleType;
-        }
+		try (DockerClient dockerClient = LiferayDockerClient.getDockerClient()) {
+			ListContainersCmd listContainersCmd = dockerClient.listContainersCmd();
 
-        public void setConfig(LiferayDockerServerConfig config) {
-            _liferayDockerServerConfig = config;
-        }
+			listContainersCmd.withNameFilter(Lists.newArrayList(getDockerContainerId()));
+			listContainersCmd.withLimit(1);
 
-        public void setConfigurationModule(JavaRunConfigurationModule configurationModule) {
-            _javaRunConfigurationModule = configurationModule;
-        }
+			List<Container> containers = listContainersCmd.exec();
 
-        @Override
-        public void setEnvs(@NotNull Map<String, String> envs) {
-            _envs.clear();
-            _envs.putAll(envs);
-        }
+			if (ListUtil.isNotEmpty(containers)) {
+				Container container = containers.get(0);
 
-        public void setModule(Module module) {
-            _javaRunConfigurationModule.setModule(module);
-        }
+				RemoveContainerCmd removeContainerCmd = dockerClient.removeContainerCmd(container.getId());
 
-        @Override
-        public void setPassParentEnvs(boolean passParentEnvs) {
-            _liferayDockerServerConfig.passParentEnvironments = passParentEnvs;
-        }
+				removeContainerCmd.exec();
+			}
+		}
+		catch (Exception e) {
+			_logger.error(e);
+		}
 
-        @Override
-        public void setProgramParameters(@Nullable String value) {
-        }
+		taskNames.add("startDockerContainer");
+		taskNames.add("logsDockerContainer");
 
-        @Override
-        public void setWorkingDirectory(@Nullable String value) {
-        }
+		settings.setTaskNames(taskNames);
 
-        @Override
-        public void writeExternal(Element element) throws WriteExternalException {
-            super.writeExternal(element);
+		ExternalSystemRunConfiguration.MyRunnableState runnableState =
+			new ExternalSystemRunConfiguration.MyRunnableState(
+				settings, getProject(), debugExecutorId.equals(executor.getId()), externalSystemRunConfiguration, env);
 
-            JavaRunConfigurationExtensionManager javaRunConfigurationExtensionManager =
-                    JavaRunConfigurationExtensionManager.getInstance();
+		copyUserDataTo(runnableState);
 
-            javaRunConfigurationExtensionManager.writeExternal(this, element);
+		return runnableState;
+	}
 
-            XmlSerializer.serializeInto(_liferayDockerServerConfig, element, new SkipDefaultsSerializationFilter());
-            EnvironmentVariablesComponent.writeExternal(element, getEnvs());
+	@Nullable
+	@Override
+	public String getWorkingDirectory() {
+		return null;
+	}
 
-            if (_javaRunConfigurationModule.getModule() != null) {
-                _javaRunConfigurationModule.writeExternal(element);
-            }
-        }
+	@Override
+	public boolean isPassParentEnvs() {
+		return _liferayDockerServerConfig.passParentEnvironments;
+	}
 
-        private Map<String, String> _envs = new LinkedHashMap<>();
-        private JavaRunConfigurationModule _javaRunConfigurationModule;
-        private LiferayDockerServerConfig _liferayDockerServerConfig = new LiferayDockerServerConfig();
+	@Override
+	public void onNewConfigurationCreated() {
+		super.onNewConfigurationCreated();
 
+		if (StringUtil.isEmpty(getWorkingDirectory())) {
+			String baseDir = FileUtil.toSystemIndependentName(StringUtil.notNullize(getProject().getBasePath()));
 
-    private static class LiferayDockerServerConfig {
+			setWorkingDirectory(baseDir);
+		}
+	}
 
-        public String dockerImageId = "";
-        public String dockerImageRepo = "";
-        public String dockerImageTag = "";
-        public String dockerContainerHealthCheckUrl = "";
-        public String dockerContainerId = "";
-        public String dockerContainerName = "";
-        public String buildType;
-        public boolean passParentEnvironments = true;
+	@Override
+	public void readExternal(Element element) throws InvalidDataException {
+		super.readExternal(element);
 
-    }
+		JavaRunConfigurationExtensionManager javaRunConfigurationExtensionManager =
+			JavaRunConfigurationExtensionManager.getInstance();
+
+		javaRunConfigurationExtensionManager.readExternal(this, element);
+
+		XmlSerializer.deserializeInto(_liferayDockerServerConfig, element);
+		EnvironmentVariablesComponent.readExternal(element, getEnvs());
+
+		_javaRunConfigurationModule.readExternal(element);
+	}
+
+	public void setConfig(LiferayDockerServerConfig config) {
+		_liferayDockerServerConfig = config;
+	}
+
+	public void setConfigurationModule(JavaRunConfigurationModule configurationModule) {
+		_javaRunConfigurationModule = configurationModule;
+	}
+
+	public void setDockerContainerId(String dockerContainerId) {
+		_liferayDockerServerConfig.dockerContainerId = dockerContainerId;
+	}
+
+	public void setDockerImageId(String dockerImageId) {
+		_liferayDockerServerConfig.dockerImageId = dockerImageId;
+	}
+
+	@Override
+	public void setEnvs(@NotNull Map<String, String> envs) {
+		_envs.clear();
+		_envs.putAll(envs);
+	}
+
+	public void setModule(Module module) {
+		_javaRunConfigurationModule.setModule(module);
+	}
+
+	@Override
+	public void setPassParentEnvs(boolean passParentEnvs) {
+		_liferayDockerServerConfig.passParentEnvironments = passParentEnvs;
+	}
+
+	@Override
+	public void setProgramParameters(@Nullable String value) {
+	}
+
+	@Override
+	public void setWorkingDirectory(@Nullable String value) {
+	}
+
+	@Override
+	public void writeExternal(Element element) throws WriteExternalException {
+		super.writeExternal(element);
+
+		JavaRunConfigurationExtensionManager javaRunConfigurationExtensionManager =
+			JavaRunConfigurationExtensionManager.getInstance();
+
+		javaRunConfigurationExtensionManager.writeExternal(this, element);
+
+		XmlSerializer.serializeInto(_liferayDockerServerConfig, element, new SkipDefaultsSerializationFilter());
+		EnvironmentVariablesComponent.writeExternal(element, getEnvs());
+
+		if (_javaRunConfigurationModule.getModule() != null) {
+			_javaRunConfigurationModule.writeExternal(element);
+		}
+	}
+
+	private static final Logger _logger = Logger.getInstance(LiferayDockerServerConfiguration.class);
+
+	private Map<String, String> _envs = new LinkedHashMap<>();
+	private ConfigurationFactory _factory;
+	private JavaRunConfigurationModule _javaRunConfigurationModule;
+	private LiferayDockerServerConfig _liferayDockerServerConfig = new LiferayDockerServerConfig();
+	private String _name;
+	private Project _project;
+
+	private static class LiferayDockerServerConfig {
+
+		public String dockerContainerId = "";
+		public String dockerImageId = "";
+		public boolean passParentEnvironments = true;
+		public String workspaceLocation = "";
+
+	}
 
 }

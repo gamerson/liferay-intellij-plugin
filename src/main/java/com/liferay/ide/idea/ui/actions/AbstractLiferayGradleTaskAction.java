@@ -66,12 +66,17 @@ public abstract class AbstractLiferayGradleTaskAction extends AbstractLiferayAct
 	protected void afterTask(VirtualFile projectDir) {
 	}
 
+	protected void beforeTask(Project project) {
+	}
+
 	protected boolean continuous() {
 		return false;
 	}
 
 	protected RunnerAndConfigurationSettings doExecute(AnActionEvent anActionEvent) {
 		Project project = anActionEvent.getRequiredData(CommonDataKeys.PROJECT);
+
+		beforeTask(project);
 
 		final VirtualFile projectDir = getWorkingDirectory(anActionEvent);
 
