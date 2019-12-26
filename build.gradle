@@ -1,6 +1,6 @@
 buildscript {
 	dependencies {
-		classpath group: "com.gradle", name: "build-scan-plugin", version: "1.16"
+		classpath group: "com.gradle", name: "build-scan-plugin", version: "2.4.2"
 		classpath group: "com.liferay", name: "com.liferay.gradle.plugins.source.formatter", version: "latest.release"
 		classpath group: "nu.studer", name: "gradle-credentials-plugin", version: "1.0.4"
 	}
@@ -12,12 +12,15 @@ buildscript {
 		maven {
 			url "https://oss.sonatype.org/content/repositories/snapshots/"
 		}
+		maven {
+			url "https://plugins.gradle.org/m2/"
+		}
 	}
 }
 
 plugins {
-	id "de.undercouch.download" version "4.0.0"
-	id "org.jetbrains.intellij" version "0.4.10"
+	id "de.undercouch.download" version "4.0.2"
+	id "org.jetbrains.intellij" version "0.4.15"
 }
 
 apply plugin: "com.gradle.build-scan"
@@ -186,7 +189,7 @@ formatSource {
 intellij {
 	plugins "java", "CSS", "DatabaseTools", "gradle", "Groovy", "java-i18n", "JavaEE", "JavaScriptLanguage", "jsp", "junit", "maven", "PersistenceSupport", "properties", "sass"
 	pluginName "liferay-intellij-plugin"
-	version "IU-2019.2.3"
+	version "IU-2019.3.1"
 }
 
 patchPluginXml {
