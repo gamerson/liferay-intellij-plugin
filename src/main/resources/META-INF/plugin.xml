@@ -202,6 +202,7 @@
 		<implicitUsageProvider order="last" implementation="com.liferay.ide.idea.language.osgi.LiferayOsgiImplicitUsageProvider" />
 		<annotator language="Manifest" implementationClass="com.liferay.ide.idea.bnd.OsgiManifestHighlightingAnnotator"/>
 		<manifest.parser.provider implementation="com.liferay.ide.idea.bnd.completion.header.OsgiManifestHeaderParsers"/>
+		<lang.parserDefinition language="Manifest" order="first" implementationClass="com.liferay.ide.idea.bnd.completion.header.LiferayManifestParserDefinition"/>
 		<codeInsight.unresolvedReferenceQuickFixProvider implementation="com.liferay.ide.idea.extensions.GradleDependencyQuickFixProvider"/>
 		<inspectionToolProvider implementation="com.liferay.ide.idea.language.service.LiferayServiceXMLInspectionToolProvider"/>
 	</extensions>

@@ -144,6 +144,10 @@ public class OsgiHeaderParser extends StandardHeaderParser {
 				if ((lastToken == ManifestTokenType.NEWLINE) &&
 					(psiBuilder.getTokenType() != ManifestTokenType.SIGNIFICANT_SPACE)) {
 
+					if (psiBuilder.getTokenType() == ManifestTokenType.HEADER_VALUE_PART) {
+						continue;
+					}
+
 					result = false;
 
 					break;
