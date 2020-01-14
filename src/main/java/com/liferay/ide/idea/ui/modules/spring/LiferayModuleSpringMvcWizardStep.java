@@ -19,64 +19,92 @@ import com.intellij.ide.util.projectWizard.WizardContext;
 
 import com.liferay.ide.idea.util.LiferayWorkspaceSupport;
 
+import com.liferay.ide.idea.util.WorkspaceConstants;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
+import java.util.stream.Stream;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 
 /**
  * @author Terry Jia
+ * @author Simon Jiang
  */
 public class LiferayModuleSpringMvcWizardStep extends ModuleWizardStep implements LiferayWorkspaceSupport {
+
+	private void _clearSpringConfigurationData() {
+		if (_frameworkCombo != null) {
+			_frameworkCombo.removeAll();
+		}
+
+		if (_frameworkCombo != null) {
+			_frameworkDependenciesCombo.removeAll();
+		}
+
+		if (_frameworkCombo != null) {
+			_viewTypeCombo.removeAll();
+		}
+	}
+
+	private void addComboItems(String[] values, JComboBox<String> comboBox) {
+		Stream.of(
+				values
+		).forEach(
+				item -> comboBox.addItem(item)
+		);
+	}
+
+	private void _intializeSpringConfigurationData(String liferayVersion) {
+		_clearSpringConfigurationData();
+
+		if (liferayVersion.equals(WorkspaceConstants.LIFERAY_VERSIONS[0])) {
+			_frameworkCombo.addItem(WorkspaceConstants.SPRING_FRAMEWORK[1]);
+		} else {
+			addComboItems(WorkspaceConstants.SPRING_FRAMEWORK, _frameworkCombo);
+		}
+
+		_frameworkDependenciesCombo.addItem(WorkspaceConstants.SPRING_FRAMEWORK_DEPENDENCIES[0]);
+		addComboItems(WorkspaceConstants.SPRING_VIEW_TYPE, _viewTypeCombo);
+
+		_frameworkCombo.setSelectedIndex(0);
+		_frameworkDependenciesCombo.setSelectedIndex(0);
+		_viewTypeCombo.setSelectedIndex(0);
+	}
 
 	public LiferayModuleSpringMvcWizardStep(WizardContext wizardContext, LiferayModuleSpringMvcBuilder builder) {
 		_builder = builder;
 
 		String liferayVersion = getLiferayVersion(wizardContext.getProject());
 
-		Set<String> supportedFrameworks = _getSupportedFrameworks(liferayVersion);
+		_intializeSpringConfigurationData(liferayVersion);
 
-		for (String supportedFramework : supportedFrameworks) {
-			_framework.addItem(supportedFramework);
-		}
-
-		Set<String> supportedFrameworkDependencies = _getSupportedFrameworkDependencies(
-			liferayVersion, (String)_framework.getSelectedItem());
-
-		for (String supportedFrameworkDependency : supportedFrameworkDependencies) {
-			_frameworkDependencies.addItem(supportedFrameworkDependency);
-		}
-
-		Set<String> supportedViewTypes = _getSupportedViewTypes(
-			liferayVersion, (String)_framework.getSelectedItem(), (String)_frameworkDependencies.getSelectedItem());
-
-		for (String supportedViewType : supportedViewTypes) {
-			_viewType.addItem(supportedViewType);
-		}
-
-		_framework.addItemListener(
+		_frameworkCombo.addItemListener(
 			e -> {
-				_frameworkDependencies.removeAllItems();
+				_frameworkDependenciesCombo.removeAllItems();
 
-				Set<String> frameworkDependencies = _getSupportedFrameworkDependencies(liferayVersion, _getFramework());
+				String value = (String) _frameworkCombo.getSelectedItem();
 
-				for (String frameworkDependency : frameworkDependencies) {
-					_frameworkDependencies.addItem(frameworkDependency);
+				if (value.equals(WorkspaceConstants.SPRING_FRAMEWORK[0])) {
+					_frameworkDependenciesCombo.removeAllItems();
+					_frameworkDependenciesCombo.addItem(
+							WorkspaceConstants.SPRING_FRAMEWORK_DEPENDENCIES[0]);
+				} else if (value.equals(WorkspaceConstants.SPRING_FRAMEWORK[1])) {
+					_frameworkDependenciesCombo.removeAllItems();
+
+					if (liferayVersion.equals(WorkspaceConstants.LIFERAY_VERSIONS[1]) ||
+							liferayVersion.equals(WorkspaceConstants.LIFERAY_VERSIONS[2])) {
+						addComboItems(WorkspaceConstants.SPRING_FRAMEWORK_DEPENDENCIES, _frameworkDependenciesCombo);
+					} else {
+						_frameworkDependenciesCombo.addItem(
+								WorkspaceConstants.SPRING_FRAMEWORK_DEPENDENCIES[0]);
+					}
 				}
-			});
 
-		_frameworkDependencies.addItemListener(
-			e -> {
-				_viewType.removeAllItems();
+				_frameworkDependenciesCombo.setSelectedIndex(0);
 
-				Set<String> viewTypes = _getSupportedViewTypes(
-					liferayVersion, _getFramework(), _getFrameworkDependencies());
-
-				for (String viewType : viewTypes) {
-					_viewType.addItem(viewType);
-				}
 			});
 	}
 
@@ -87,99 +115,22 @@ public class LiferayModuleSpringMvcWizardStep extends ModuleWizardStep implement
 
 	@Override
 	public void updateDataModel() {
-		_builder.setFramework(_getFramework());
-		_builder.setFrameworkDependencies(_getFrameworkDependencies());
-		_builder.setViewType(_getViewType());
-	}
+		Map<String, String> frameworkDependeices = WorkspaceConstants.springFrameworkDependeices;
+		Map<String, String> frameworks = WorkspaceConstants.springFrameworks;
+		Map<String, String> viewTypes = WorkspaceConstants.springViewTypes;
 
-	private String _getFramework() {
-		Object framework = _framework.getSelectedItem();
-
-		if (framework != null) {
-			return String.valueOf(_framework.getSelectedItem());
-		}
-
-		return "";
-	}
-
-	private String _getFrameworkDependencies() {
-		Object frameworkDependencies = _frameworkDependencies.getSelectedItem();
-
-		if (frameworkDependencies != null) {
-			return String.valueOf(_frameworkDependencies.getSelectedItem());
-		}
-
-		return "";
-	}
-
-	private Set<String> _getSupportedFrameworkDependencies(String liferayVersion, String framework) {
-		Set<String> supportedFrameworksDependencies = new HashSet<>();
-
-		for (String[] possibleOptions : _possibleOptionsMatrix) {
-			if (liferayVersion.equals(possibleOptions[3]) && framework.equals(possibleOptions[0])) {
-				supportedFrameworksDependencies.add(possibleOptions[1]);
-			}
-		}
-
-		return supportedFrameworksDependencies;
-	}
-
-	private Set<String> _getSupportedFrameworks(String liferayVersion) {
-		Set<String> supportedFrameworks = new HashSet<>();
-
-		for (String[] possibleOptions : _possibleOptionsMatrix) {
-			if (liferayVersion.equals(possibleOptions[3])) {
-				supportedFrameworks.add(possibleOptions[0]);
-			}
-		}
-
-		return supportedFrameworks;
-	}
-
-	private Set<String> _getSupportedViewTypes(String liferayVersion, String framework, String frameworkDependency) {
-		Set<String> supportedViewTypes = new HashSet<>();
-
-		for (String[] possibleOptions : _possibleOptionsMatrix) {
-			if (liferayVersion.equals(possibleOptions[3]) && framework.equals(possibleOptions[0]) &&
-				frameworkDependency.equals(possibleOptions[1])) {
-
-				supportedViewTypes.add(possibleOptions[2]);
-			}
-		}
-
-		return supportedViewTypes;
-	}
-
-	private String _getViewType() {
-		Object viewType = _viewType.getSelectedItem();
-
-		if (viewType != null) {
-			return String.valueOf(_viewType.getSelectedItem());
-		}
-
-		return "";
+		_builder.setFramework(frameworks.get(_frameworkCombo.getSelectedItem()));
+		_builder.setFrameworkDependencies(frameworkDependeices.get(_frameworkDependenciesCombo.getSelectedItem()));
+		_builder.setViewType(viewTypes.get(_viewTypeCombo.getSelectedItem()));
 	}
 
 	private LiferayModuleSpringMvcBuilder _builder;
-	private JComboBox _framework;
-	private JComboBox _frameworkDependencies;
+	private JComboBox<String> _frameworkCombo;
+	private JComboBox<String> _frameworkDependenciesCombo;
+	private JComboBox<String> _viewTypeCombo;
 	private JPanel _mainPanel;
 
 	/**
 	 according to https://github.com/gamerson/liferay-portal/pull/279#issuecomment-500082302
 	 */
-	private String[][] _possibleOptionsMatrix = {
-		{"springportletmvc", "embedded", "jsp", "7.0"}, {"springportletmvc", "embedded", "thymeleaf", "7.0"},
-		{"springportletmvc", "embedded", "jsp", "7.1"}, {"springportletmvc", "embedded", "thymeleaf", "7.1"},
-		{"springportletmvc", "provided", "jsp", "7.1"}, {"springportletmvc", "provided", "thymeleaf", "7.1"},
-		{"springportletmvc", "embedded", "jsp", "7.2"}, {"springportletmvc", "embedded", "thymeleaf", "7.2"},
-		{"springportletmvc", "provided", "jsp", "7.2"}, {"springportletmvc", "provided", "thymeleaf", "7.2"},
-		{"springportletmvc", "embedded", "jsp", "7.3"}, {"springportletmvc", "embedded", "thymeleaf", "7.3"},
-		{"portletmvc4spring", "embedded", "jsp", "7.1"}, {"portletmvc4spring", "embedded", "thymeleaf", "7.1"},
-		{"portletmvc4spring", "embedded", "jsp", "7.2"}, {"portletmvc4spring", "embedded", "thymeleaf", "7.2"},
-		{"portletmvc4spring", "embedded", "jsp", "7.3"}, {"portletmvc4spring", "embedded", "thymeleaf", "7.3"}
-	};
-
-	private JComboBox _viewType;
-
 }
