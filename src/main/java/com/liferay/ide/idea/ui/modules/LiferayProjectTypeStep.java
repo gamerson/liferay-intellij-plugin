@@ -65,7 +65,7 @@ import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.UIUtil;
 
 import com.liferay.ide.idea.ui.modules.ext.LiferayModuleExtBuilder;
-import com.liferay.ide.idea.ui.modules.spring.LiferayModuleSpringMvcBuilder;
+import com.liferay.ide.idea.ui.modules.springmvcportlet.LiferaySpringMvcPortletBuilder;
 import com.liferay.ide.idea.util.CoreUtil;
 import com.liferay.ide.idea.util.LiferayWorkspaceSupport;
 
@@ -555,7 +555,7 @@ public class LiferayProjectTypeStep extends ModuleWizardStep implements Disposab
 			_templatesMap.put(new TemplatesGroup(new LiferayModuleExtBuilder()), new ArrayList<>());
 		}
 
-		_templatesMap.put(new TemplatesGroup(new LiferayModuleSpringMvcBuilder()), new ArrayList<>());
+		_templatesMap.put(new TemplatesGroup(new LiferaySpringMvcPortletBuilder()), new ArrayList<>());
 
 		List<TemplatesGroup> groups = new ArrayList<>(_templatesMap.keySet());
 
