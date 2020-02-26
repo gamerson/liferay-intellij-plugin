@@ -140,8 +140,7 @@ public class NewModuleExtFilesAction extends AnAction implements DumbAware, Life
 
 		private void _getLibraryData() {
 			try {
-				List<LibraryData> targetPlatformArtifacts = LiferayWorkspaceSupport.getTargetPlatformArtifacts(
-					_project);
+				List<LibraryData> targetPlatformArtifacts = getTargetPlatformArtifacts(_project);
 
 				if (targetPlatformArtifacts.isEmpty()) {
 					return;

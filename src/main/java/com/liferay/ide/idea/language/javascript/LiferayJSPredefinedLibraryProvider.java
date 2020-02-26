@@ -56,7 +56,8 @@ import org.jetbrains.annotations.NotNull;
  *
  * @author Dominik Marks
  */
-public class LiferayJSPredefinedLibraryProvider extends JSPredefinedLibraryProvider implements ModuleRootListener {
+public class LiferayJSPredefinedLibraryProvider
+	extends JSPredefinedLibraryProvider implements LiferayWorkspaceSupport, ModuleRootListener {
 
 	@NotNull
 	@Override
@@ -123,27 +124,6 @@ public class LiferayJSPredefinedLibraryProvider extends JSPredefinedLibraryProvi
 	}
 
 	@NotNull
-	private static Set<VirtualFile> _getJavascriptFiles(@NotNull Project project) {
-		List<LibraryData> targetPlatformArtifacts = _getTargetPlatformArtifacts(project);
-
-		Stream<LibraryData> stream = targetPlatformArtifacts.stream();
-
-		return stream.filter(
-			libraryData -> Objects.equals("com.liferay", libraryData.getGroupId())
-		).filter(
-			libraryData ->
-				Objects.equals("com.liferay.frontend.js.web", libraryData.getArtifactId()) ||
-				Objects.equals("com.liferay.frontend.js.aui.web", libraryData.getArtifactId())
-		).map(
-			LiferayJSPredefinedLibraryProvider::_getJavascriptFilesFromLibraryData
-		).flatMap(
-			javascriptFiles -> javascriptFiles.stream()
-		).collect(
-			Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(VirtualFile::getUrl)))
-		);
-	}
-
-	@NotNull
 	@SuppressWarnings("rawtypes")
 	private static Set<VirtualFile> _getJavascriptFilesFromJarRoot(@NotNull VirtualFile jarRoot) {
 		Set<VirtualFile> virtualFiles = new HashSet<>();
@@ -195,14 +175,35 @@ public class LiferayJSPredefinedLibraryProvider extends JSPredefinedLibraryProvi
 	}
 
 	@NotNull
-	private static List<LibraryData> _getTargetPlatformArtifacts(@NotNull Project project) {
+	private Set<VirtualFile> _getJavascriptFiles(@NotNull Project project) {
+		List<LibraryData> targetPlatformArtifacts = _getTargetPlatformArtifacts(project);
+
+		Stream<LibraryData> stream = targetPlatformArtifacts.stream();
+
+		return stream.filter(
+			libraryData -> Objects.equals("com.liferay", libraryData.getGroupId())
+		).filter(
+			libraryData ->
+				Objects.equals("com.liferay.frontend.js.web", libraryData.getArtifactId()) ||
+				Objects.equals("com.liferay.frontend.js.aui.web", libraryData.getArtifactId())
+		).map(
+			LiferayJSPredefinedLibraryProvider::_getJavascriptFilesFromLibraryData
+		).flatMap(
+			javascriptFiles -> javascriptFiles.stream()
+		).collect(
+			Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(VirtualFile::getUrl)))
+		);
+	}
+
+	@NotNull
+	private List<LibraryData> _getTargetPlatformArtifacts(@NotNull Project project) {
 		Application application = ApplicationManager.getApplication();
 
 		if (application.isUnitTestMode()) {
 			return _targetPlatformArtifacts;
 		}
 
-		return LiferayWorkspaceSupport.getTargetPlatformArtifacts(project);
+		return getTargetPlatformArtifacts(project);
 	}
 
 	private static final String _LIFERAY_JAVASCRIPT_LIBRARY_NAME = "Liferay JavaScript";

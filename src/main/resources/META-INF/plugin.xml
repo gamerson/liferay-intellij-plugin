@@ -168,6 +168,11 @@
 			<add-to-group group-id="NewGroup" anchor="last"/>
 		</action>
 
+		<action id="AddLiferayGradleDependencyAction"
+				class="com.liferay.ide.idea.extensions.AddGradleDependencyAction">
+			<add-to-group group-id="Gradle.GenerateGroup" anchor="after" relative-to-action="Gradle.AddGradleDslDependencyAction"/>
+		</action>
+
 		<group id="LiferayActionGroup" class="com.liferay.ide.idea.ui.actions.LiferayActionGroup" popup="true" text="Liferay" icon="/icons/liferay.svg">
 			<add-to-group group-id="ProjectViewPopupMenu" />
 			<action class="com.liferay.ide.idea.ui.actions.DeployGradleModuleAction" id="DeployLiferayGradleModule"/>

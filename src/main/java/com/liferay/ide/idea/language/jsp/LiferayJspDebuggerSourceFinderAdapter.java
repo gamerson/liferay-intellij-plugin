@@ -51,7 +51,7 @@ import org.jetbrains.annotations.Nullable;
 /**
  * @author Dominik Marks
  */
-public class LiferayJspDebuggerSourceFinderAdapter implements SourcesFinder<JavaeeFacet[]> {
+public class LiferayJspDebuggerSourceFinderAdapter implements LiferayWorkspaceSupport, SourcesFinder<JavaeeFacet[]> {
 
 	@Nullable
 	public PsiFile findSourceFile(String relPath, Project project, JavaeeFacet[] scope) {
@@ -121,17 +121,6 @@ public class LiferayJspDebuggerSourceFinderAdapter implements SourcesFinder<Java
 		return sourceFiles;
 	}
 
-	@NotNull
-	private static List<LibraryData> _getTargetPlatformArtifacts(@NotNull Project project) {
-		Application application = ApplicationManager.getApplication();
-
-		if (application.isUnitTestMode()) {
-			return _targetPlatformArtifacts;
-		}
-
-		return LiferayWorkspaceSupport.getTargetPlatformArtifacts(project);
-	}
-
 	private void _addJspFiles(String relPath, Project project, Collection<PsiFile> psiFiles, VirtualFile jarRoot) {
 		PsiManager psiManager = PsiManager.getInstance(project);
 
@@ -152,6 +141,17 @@ public class LiferayJspDebuggerSourceFinderAdapter implements SourcesFinder<Java
 		).ifPresent(
 			psiFiles::add
 		);
+	}
+
+	@NotNull
+	private List<LibraryData> _getTargetPlatformArtifacts(@NotNull Project project) {
+		Application application = ApplicationManager.getApplication();
+
+		if (application.isUnitTestMode()) {
+			return _targetPlatformArtifacts;
+		}
+
+		return getTargetPlatformArtifacts(project);
 	}
 
 	private boolean _isJava(String relPath) {
