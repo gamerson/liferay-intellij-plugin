@@ -220,5 +220,16 @@
 		<manifest.parser.provider implementation="com.liferay.ide.idea.bnd.completion.header.OsgiManifestHeaderParsers"/>
 		<codeInsight.unresolvedReferenceQuickFixProvider implementation="com.liferay.ide.idea.extensions.GradleDependencyQuickFixProvider"/>
 		<inspectionToolProvider implementation="com.liferay.ide.idea.language.service.LiferayServiceXMLInspectionToolProvider"/>
+		<preloadingActivity implementation="com.liferay.ide.idea.languageserver.LiferayLanguageServerPreloadingActivity" id="com.liferay.ide.idea.languageserver.LiferayLanguageServerPreloadingActivity" />
+		<completion.contributor implementationClass="org.wso2.lsp4intellij.contributors.LSPCompletionContributor" id="LSPCompletionContributor" language="any" order="first" />
+		<externalAnnotator id="LSPAnnotator" language="Properties" implementationClass="org.wso2.lsp4intellij.contributors.annotator.LSPAnnotator"/>
 	</extensions>
+
+	<application-components>
+		<component>
+			<implementation-class>org.wso2.lsp4intellij.IntellijLanguageClient</implementation-class>
+		</component>
+	</application-components>
+
 </idea-plugin>
+
