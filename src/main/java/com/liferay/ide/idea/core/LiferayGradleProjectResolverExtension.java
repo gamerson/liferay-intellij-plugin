@@ -142,6 +142,8 @@ public class LiferayGradleProjectResolverExtension extends AbstractProjectResolv
 
 				});
 		}
+
+		super.populateModuleDependencies(gradleModule, ideModule, ideProject);
 	}
 
 	@Nullable
