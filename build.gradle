@@ -78,6 +78,12 @@ dependencies {
 	testCompile group: "junit", name: "junit", version: "4.12"
 }
 
+jar {
+	from {
+		configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+	}
+}
+
 dockerImageBuild {
 	List<String> args = ['docker', 'build', '--tag', 'liferay-intellij-plugin-build', '.']
 
