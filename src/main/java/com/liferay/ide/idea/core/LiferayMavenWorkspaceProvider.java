@@ -27,7 +27,7 @@ import org.jetbrains.idea.maven.project.MavenProject;
 /**
  * @author Simon Jiang
  */
-public class LiferayMavenWorkspaceProvider extends AbstractWorkspaceProvider implements LiferayWorkspaceSupport {
+public class LiferayMavenWorkspaceProvider extends AbstractWorkspaceProvider {
 
 	public LiferayMavenWorkspaceProvider() {
 	}
@@ -47,7 +47,24 @@ public class LiferayMavenWorkspaceProvider extends AbstractWorkspaceProvider imp
 
 	@Override
 	public String getTargetPlatformVersion() {
-		return null;
+		String targetPlatformVersion = getWorkspaceProperty(WorkspaceConstants.WORKSPACE_BOM_VERSION, null);
+
+		if (Objects.nonNull(targetPlatformVersion) && targetPlatformVersion.contains("-")) {
+			targetPlatformVersion = targetPlatformVersion.substring(0, targetPlatformVersion.indexOf("-"));
+		}
+
+		return targetPlatformVersion;
+	}
+
+	@Override
+	public String[] getWorkspaceModuleDirs() {
+		String workspaceBomVersion = getTargetPlatformVersion();
+
+		if (Objects.nonNull(workspaceBomVersion)) {
+			return null;
+		}
+
+		return new String[] {"modules"};
 	}
 
 	@Override
@@ -60,17 +77,23 @@ public class LiferayMavenWorkspaceProvider extends AbstractWorkspaceProvider imp
 	}
 
 	@Override
+	public String[] getWorkspaceWarDirs() {
+		String workspaceBomVersion = getTargetPlatformVersion();
+
+		if (Objects.nonNull(workspaceBomVersion)) {
+			return null;
+		}
+
+		return new String[] {"wars"};
+	}
+
+	@Override
 	public boolean isFlexibleLiferayWorkspace() {
 		MavenProject mavenWorkspaceProject = MavenUtil.getWorkspaceMavenProject(project);
 
 		Properties properties = mavenWorkspaceProject.getProperties();
 
 		return Objects.nonNull(properties.getProperty(WorkspaceConstants.WORKSPACE_BOM_VERSION, null));
-	}
-
-	@Override
-	public boolean isGradleWorkspace() {
-		return false;
 	}
 
 	@Override

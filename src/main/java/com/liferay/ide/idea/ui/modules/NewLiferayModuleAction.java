@@ -31,9 +31,7 @@ import com.intellij.openapi.roots.ui.configuration.ModulesConfigurator;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.vfs.VirtualFile;
 
-import com.liferay.ide.idea.core.LiferayCore;
 import com.liferay.ide.idea.core.LiferayIcons;
-import com.liferay.ide.idea.core.WorkspaceProvider;
 import com.liferay.ide.idea.util.LiferayWorkspaceSupport;
 
 import java.util.List;
@@ -53,10 +51,6 @@ public class NewLiferayModuleAction extends AnAction implements DumbAware {
 	@Override
 	public void actionPerformed(AnActionEvent event) {
 		Project project = getEventProject(event);
-
-		WorkspaceProvider workspaceProvider = LiferayCore.getWorkspaceProvider(project);
-
-		String targetPlatformVersion = workspaceProvider.getTargetPlatformVersion();
 
 		if (!LiferayWorkspaceSupport.isValidWorkspaceLocation(project)) {
 			Messages.showErrorDialog("Unable to detect current project as a Liferay workspace", "No Liferay workspace");

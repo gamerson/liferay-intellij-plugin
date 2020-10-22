@@ -19,7 +19,6 @@ import com.google.common.collect.ListMultimap;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.projectRoots.impl.JavaHomeFinder;
 import com.intellij.openapi.util.text.StringUtil;
-import com.intellij.openapi.vfs.VirtualFile;
 
 import com.liferay.ide.idea.util.CoreUtil;
 import com.liferay.ide.idea.util.GradleDependency;
@@ -70,25 +69,7 @@ public class LiferayGradleWorkspaceProvider extends AbstractWorkspaceProvider {
 
 	@Override
 	public boolean getIndexSources() {
-		String result = "false";
-
-		VirtualFile workspaceVirtualFile = getWorkspaceVirtualFile();
-
-		if (workspaceVirtualFile != null) {
-			VirtualFile gradlePropertiesVirtualFile = workspaceVirtualFile.findFileByRelativePath("/gradle.properties");
-
-			if (gradlePropertiesVirtualFile != null) {
-				Properties properties = new Properties();
-
-				try {
-					properties.load(gradlePropertiesVirtualFile.getInputStream());
-
-					result = properties.getProperty(WorkspaceConstants.TARGET_PLATFORM_INDEX_SOURCES_PROPERTY);
-				}
-				catch (IOException ioe) {
-				}
-			}
-		}
+		String result = getWorkspaceProperty(WorkspaceConstants.TARGET_PLATFORM_INDEX_SOURCES_PROPERTY, "false");
 
 		return Boolean.parseBoolean(result);
 	}
@@ -228,10 +209,7 @@ public class LiferayGradleWorkspaceProvider extends AbstractWorkspaceProvider {
 
 	@Override
 	public String getTargetPlatformVersion() {
-		String location = project.getBasePath();
-
-		String targetPlatformVersion = _getGradleProperty(
-			location, WorkspaceConstants.TARGET_PLATFORM_VERSION_PROPERTY, null);
+		String targetPlatformVersion = getWorkspaceProperty(WorkspaceConstants.TARGET_PLATFORM_VERSION_PROPERTY, null);
 
 		if (CoreUtil.isNullOrEmpty(targetPlatformVersion)) {
 			ProductInfo productInfo = getWorkspaceProductInfo();
@@ -250,11 +228,10 @@ public class LiferayGradleWorkspaceProvider extends AbstractWorkspaceProvider {
 
 	@Override
 	public String[] getWorkspaceModuleDirs() {
-		String workspacePluginVersion = GradleUtil.getWorkspacePluginVersion(project);
+		if (CoreUtil.compareVersions(
+				Version.parseVersion(GradleUtil.getWorkspacePluginVersion(project)), new Version("2.5.0")) < 0) {
 
-		if (CoreUtil.compareVersions(Version.parseVersion(workspacePluginVersion), new Version("2.5.0")) < 0) {
-			String moduleDirs = _getGradleProperty(
-				project.getBasePath(), WorkspaceConstants.MODULES_DIR_PROPERTY, null);
+			String moduleDirs = getWorkspaceProperty(WorkspaceConstants.MODULES_DIR_PROPERTY, null);
 
 			if (Objects.isNull(moduleDirs)) {
 				return new String[] {WorkspaceConstants.MODULES_DIR_DEFAULT};
@@ -263,8 +240,8 @@ public class LiferayGradleWorkspaceProvider extends AbstractWorkspaceProvider {
 			return moduleDirs.split(",");
 		}
 
-		String modulesDir = _getGradleProperty(
-			project.getBasePath(), WorkspaceConstants.MODULES_DIR_PROPERTY, WorkspaceConstants.MODULES_DIR_DEFAULT);
+		String modulesDir = getWorkspaceProperty(
+			WorkspaceConstants.MODULES_DIR_PROPERTY, WorkspaceConstants.MODULES_DIR_DEFAULT);
 
 		if (StringUtil.equals(modulesDir, "*")) {
 			return null;
@@ -305,6 +282,35 @@ public class LiferayGradleWorkspaceProvider extends AbstractWorkspaceProvider {
 		}
 
 		return null;
+	}
+
+	@Override
+	public String[] getWorkspaceWarDirs() {
+		if (CoreUtil.compareVersions(
+				Version.parseVersion(GradleUtil.getWorkspacePluginVersion(project)), new Version("2.5.0")) < 0) {
+
+			String warDirs = getWorkspaceProperty(WorkspaceConstants.WARS_DIR_PROPERTY, null);
+
+			if (Objects.isNull(warDirs)) {
+				return new String[] {"wars"};
+			}
+
+			return warDirs.split(",");
+		}
+
+		String warDirs = getWorkspaceProperty(WorkspaceConstants.WARS_DIR_PROPERTY, null);
+
+		if (Objects.nonNull(warDirs)) {
+			return warDirs.split(",");
+		}
+
+		String modulesDir = getWorkspaceProperty(WorkspaceConstants.MODULES_DIR_PROPERTY, "modules");
+
+		if (StringUtil.equals(modulesDir, "*")) {
+			return null;
+		}
+
+		return modulesDir.split(",");
 	}
 
 	@Override
@@ -363,21 +369,5 @@ public class LiferayGradleWorkspaceProvider extends AbstractWorkspaceProvider {
 	}
 
 	public Map<String, List<String>> targetPlatformDependenciesMap = new HashMap<>();
-
-	private String _getGradleProperty(String projectLocation, String key, String defaultValue) {
-		File gradleProperties = new File(projectLocation, "gradle.properties");
-
-		if (gradleProperties.exists()) {
-			Properties properties = PropertiesUtil.loadProperties(gradleProperties);
-
-			if (Objects.isNull(properties)) {
-				return defaultValue;
-			}
-
-			return properties.getProperty(key, defaultValue);
-		}
-
-		return null;
-	}
 
 }

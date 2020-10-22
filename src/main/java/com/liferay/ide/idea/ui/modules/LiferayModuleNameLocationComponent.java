@@ -110,7 +110,14 @@ public class LiferayModuleNameLocationComponent implements LiferayWorkspaceSuppo
 					String moduleName = _getModuleName();
 
 					if ((path.length() > 0) && !Comparing.strEqual(moduleName, namePathComponent.getNameValue())) {
-						path += "/" + _getTargetFolderName() + "/" + moduleName;
+						String targetFolderName = _getTargetFolderName();
+
+						if (Objects.isNull(targetFolderName)) {
+							path += "/" + moduleName;
+						}
+						else {
+							path += "/" + targetFolderName + "/" + moduleName;
+						}
 					}
 
 					if (!_contentRootChangedByUser) {
@@ -303,8 +310,6 @@ public class LiferayModuleNameLocationComponent implements LiferayWorkspaceSuppo
 	}
 
 	private String _getTargetFolderName() {
-		AbstractModuleBuilder builder = getModuleBuilder();
-
 		Project project = _context.getProject();
 
 		WorkspaceProvider workspaceProvider = LiferayCore.getWorkspaceProvider(project);
@@ -312,6 +317,8 @@ public class LiferayModuleNameLocationComponent implements LiferayWorkspaceSuppo
 		if (Objects.isNull(workspaceProvider)) {
 			return WorkspaceConstants.MODULES_DIR_DEFAULT;
 		}
+
+		AbstractModuleBuilder builder = getModuleBuilder();
 
 		String targetFolderName = null;
 		boolean warProject = false;
@@ -329,20 +336,20 @@ public class LiferayModuleNameLocationComponent implements LiferayWorkspaceSuppo
 				}
 			}
 
-			if (!warProject) {
-				String[] defaultModuleDirs = workspaceProvider.getWorkspaceModuleDirs();
-
-				if (Objects.nonNull(defaultModuleDirs)) {
-					targetFolderName = defaultModuleDirs[0];
-				}
-			}
-			else if (Objects.equals("js-theme", templateType)) {
+			if (Objects.equals("js-theme", templateType)) {
 				targetFolderName = getWorkspaceProperty(
 					project, WorkspaceConstants.THEMES_DIR_PROPERTY, WorkspaceConstants.THEMES_DIR_DEFAULT);
 			}
 			else if (Objects.equals("war-core-ext", templateType)) {
 				targetFolderName = getWorkspaceProperty(
 					project, WorkspaceConstants.EXT_DIR_PROPERTY, WorkspaceConstants.EXT_DIR_DEFAULT);
+			}
+			else if (!warProject) {
+				String[] defaultModuleDirs = workspaceProvider.getWorkspaceModuleDirs();
+
+				if (Objects.nonNull(defaultModuleDirs)) {
+					targetFolderName = defaultModuleDirs[0];
+				}
 			}
 		}
 		else if (builder instanceof LiferayModuleExtBuilder) {

@@ -1,3 +1,17 @@
+/**
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
+ *
+ * This library is free software; you can redistribute it and/or modify it under
+ * the terms of the GNU Lesser General Public License as published by the Free
+ * Software Foundation; either version 2.1 of the License, or (at your option)
+ * any later version.
+ *
+ * This library is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
+ * details.
+ */
+
 package com.liferay.ide.idea.core;
 
 import com.intellij.openapi.project.Project;
@@ -6,6 +20,11 @@ import com.intellij.openapi.vfs.VirtualFile;
 
 import com.liferay.ide.idea.util.CoreUtil;
 
+import java.io.File;
+
+/**
+ * @author Simon Jiang
+ */
 public abstract class AbstractWorkspaceProvider implements WorkspaceProvider {
 
 	public AbstractWorkspaceProvider() {
@@ -28,20 +47,30 @@ public abstract class AbstractWorkspaceProvider implements WorkspaceProvider {
 		return null;
 	}
 
-	public VirtualFile getWorkspaceVirtualFile() {
+	@Override
+	public VirtualFile getModuleExtDirFile() {
 		if (project == null) {
 			return null;
 		}
 
-		String projectBasePath = project.getBasePath();
+		String moduleExtDir = getWorkspaceProperty(
+			WorkspaceConstants.EXT_DIR_PROPERTY, WorkspaceConstants.EXT_DIR_DEFAULT);
 
-		if (projectBasePath == null) {
-			return null;
+		File file = new File(project.getBasePath(), moduleExtDir);
+
+		if (!file.isAbsolute()) {
+			String projectBasePath = project.getBasePath();
+
+			if (projectBasePath == null) {
+				return null;
+			}
+
+			file = new File(projectBasePath, moduleExtDir);
 		}
 
-		LocalFileSystem fileSystem = LocalFileSystem.getInstance();
+		LocalFileSystem localFileSystem = LocalFileSystem.getInstance();
 
-		return fileSystem.findFileByPath(projectBasePath);
+		return localFileSystem.findFileByPath(file.getPath());
 	}
 
 	protected Project project;

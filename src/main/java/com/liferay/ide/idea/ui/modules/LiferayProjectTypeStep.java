@@ -647,30 +647,6 @@ public class LiferayProjectTypeStep extends ModuleWizardStep implements Disposab
 		return true;
 	}
 
-	private void _showLiferayWorkspaceProductTip(Project project) {
-		WorkspaceProvider workspaceProvider = LiferayCore.getWorkspaceProvider(project);
-
-		if (Objects.isNull(workspaceProvider)) {
-			return;
-		}
-
-		if (workspaceProvider.isGradleWorkspace()) {
-			String workspaceProductKey = workspaceProvider.getWorkspaceProperty(
-				WorkspaceConstants.WORKSPACE_PRODUCT_PROPERTY, null);
-
-			if (CoreUtil.isNullOrEmpty(workspaceProductKey)) {
-				Application application = ApplicationManager.getApplication();
-
-				application.invokeAndWait(
-					() -> {
-						LiferayWorkspaceProductTip liferayWorkspaceProductTip = new LiferayWorkspaceProductTip(project);
-
-						liferayWorkspaceProductTip.showAndGet();
-					});
-			}
-		}
-	}
-
 	private void _showTemplates(TemplatesGroup group) {
 		_setTemplatesList(group, _templatesMap.get(group), false);
 

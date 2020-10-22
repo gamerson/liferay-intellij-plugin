@@ -55,9 +55,8 @@ public class LiferayCore {
 		if (_workspaceProviders == null) {
 			_workspaceProviders = new ArrayList<>();
 
-			ClassLoader classLoader = LiferayCore.class.getClassLoader();
-
-			ServiceLoader<WorkspaceProvider> serviceLoader = ServiceLoader.load(WorkspaceProvider.class, classLoader);
+			ServiceLoader<WorkspaceProvider> serviceLoader = ServiceLoader.load(
+				WorkspaceProvider.class, LiferayCore.class.getClassLoader());
 
 			Iterator<WorkspaceProvider> workspaceProviderIterator = serviceLoader.iterator();
 

@@ -32,15 +32,15 @@ public interface WorkspaceProvider {
 
 	public String getLiferayVersion();
 
+	public VirtualFile getModuleExtDirFile();
+
 	public default List<String> getTargetPlatformDependencies() {
 		return null;
 	}
 
 	public String getTargetPlatformVersion();
 
-	public default String[] getWorkspaceModuleDirs() {
-		return null;
-	}
+	public String[] getWorkspaceModuleDirs();
 
 	public default ProductInfo getWorkspaceProductInfo() {
 		return null;
@@ -48,19 +48,11 @@ public interface WorkspaceProvider {
 
 	public String getWorkspaceProperty(String key, String defaultValue);
 
-	public VirtualFile getWorkspaceVirtualFile();
-
-	public default String[] getWorkspaceWarDirs() {
-		return null;
-	}
+	public String[] getWorkspaceWarDirs();
 
 	public boolean isFlexibleLiferayWorkspace();
 
 	public default boolean isGradleWorkspace() {
-		return false;
-	}
-
-	public default boolean isWatchable() {
 		return false;
 	}
 

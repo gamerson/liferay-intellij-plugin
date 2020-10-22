@@ -14,20 +14,16 @@
 
 package com.liferay.ide.idea.util;
 
+import aQute.bnd.version.Version;
+
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 
-import com.intellij.openapi.externalSystem.model.DataNode;
-import com.intellij.openapi.externalSystem.model.ExternalProjectInfo;
-import com.intellij.openapi.externalSystem.model.ProjectKeys;
-import com.intellij.openapi.externalSystem.model.project.LibraryData;
-import com.intellij.openapi.externalSystem.model.project.ProjectData;
 import com.intellij.openapi.externalSystem.service.notification.ExternalSystemNotificationManager;
 import com.intellij.openapi.externalSystem.service.notification.NotificationCategory;
 import com.intellij.openapi.externalSystem.service.notification.NotificationData;
 import com.intellij.openapi.externalSystem.service.notification.NotificationSource;
-import com.intellij.openapi.externalSystem.service.project.ProjectDataManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -41,14 +37,8 @@ import java.io.File;
 
 import java.nio.file.Files;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -90,49 +80,29 @@ public interface LiferayWorkspaceSupport {
 		return null;
 	}
 
-	public static List<LibraryData> getTargetPlatformArtifacts(Project project) {
-		ProjectDataManager projectDataManager = ProjectDataManager.getInstance();
-
-		Collection<ExternalProjectInfo> externalProjectInfos = projectDataManager.getExternalProjectsData(
-			project, GradleConstants.SYSTEM_ID);
-
-		for (ExternalProjectInfo externalProjectInfo : externalProjectInfos) {
-			DataNode<ProjectData> projectData = externalProjectInfo.getExternalProjectStructure();
-
-			if (projectData == null) {
-				continue;
-			}
-
-			Collection<DataNode<?>> dataNodes = projectData.getChildren();
-
-			List<LibraryData> libraryData = new ArrayList<>(dataNodes.size());
-
-			for (DataNode<?> child : dataNodes) {
-				if (!ProjectKeys.LIBRARY.equals(child.getKey())) {
-					continue;
-				}
-
-				libraryData.add((LibraryData)child.getData());
-			}
-
-			libraryData.sort(
-				Comparator.comparing(LibraryData::getArtifactId, Comparator.nullsFirst(String.CASE_INSENSITIVE_ORDER)));
-
-			return libraryData;
-		}
-
-		return Collections.emptyList();
-	}
-
 	@Nullable
 	public static VirtualFile getWorkspaceVirtualFile(@Nullable Project project) {
-		WorkspaceProvider workspaceProvider = LiferayCore.getWorkspaceProvider(project);
+		if (project == null) {
+			return null;
+		}
 
-		return workspaceProvider.getWorkspaceVirtualFile();
+		String projectBasePath = project.getBasePath();
+
+		if (projectBasePath == null) {
+			return null;
+		}
+
+		LocalFileSystem fileSystem = LocalFileSystem.getInstance();
+
+		return fileSystem.findFileByPath(projectBasePath);
 	}
 
 	public static boolean isFlexibleLiferayWorkspace(Project project) {
 		WorkspaceProvider workspaceProvider = LiferayCore.getWorkspaceProvider(project);
+
+		if (Objects.isNull(workspaceProvider)) {
+			return false;
+		}
 
 		return workspaceProvider.isFlexibleLiferayWorkspace();
 	}
@@ -251,45 +221,28 @@ public interface LiferayWorkspaceSupport {
 
 	@Nullable
 	public default String getMavenProperty(Project project, String key, String defaultValue) {
-		if (!isValidMavenWorkspaceLocation(project)) {
+		WorkspaceProvider workspaceProvider = LiferayCore.getWorkspaceProvider(project);
+
+		if (Objects.isNull(workspaceProvider)) {
 			return null;
 		}
 
-		MavenProject mavenWorkspaceProject = MavenUtil.getWorkspaceMavenProject(project);
-
-		if (mavenWorkspaceProject == null) {
-			return defaultValue;
+		if (workspaceProvider.isGradleWorkspace()) {
+			return null;
 		}
 
-		Properties properties = mavenWorkspaceProject.getProperties();
-
-		return properties.getProperty(key, defaultValue);
+		return workspaceProvider.getWorkspaceProperty(key, defaultValue);
 	}
 
 	@Nullable
 	public default VirtualFile getModuleExtDirFile(Project project) {
-		if (project == null) {
+		WorkspaceProvider workspaceProvider = LiferayCore.getWorkspaceProvider(project);
+
+		if (Objects.isNull(workspaceProvider)) {
 			return null;
 		}
 
-		String moduleExtDir = getWorkspaceProperty(
-			project, WorkspaceConstants.EXT_DIR_PROPERTY, WorkspaceConstants.EXT_DIR_DEFAULT);
-
-		File file = new File(moduleExtDir);
-
-		if (!file.isAbsolute()) {
-			String projectBasePath = project.getBasePath();
-
-			if (projectBasePath == null) {
-				return null;
-			}
-
-			file = new File(projectBasePath, moduleExtDir);
-		}
-
-		LocalFileSystem localFileSystem = LocalFileSystem.getInstance();
-
-		return localFileSystem.findFileByPath(file.getPath());
+		return workspaceProvider.getModuleExtDirFile();
 	}
 
 	@Nullable
@@ -349,10 +302,10 @@ public interface LiferayWorkspaceSupport {
 		int dashPosition = targetPlatformVersion.indexOf(StringPool.DASH);
 
 		if (dashPosition != -1) {
-			return aQute.bnd.version.Version.isVersion(targetPlatformVersion.substring(0, dashPosition));
+			return Version.isVersion(targetPlatformVersion.substring(0, dashPosition));
 		}
 
-		return aQute.bnd.version.Version.isVersion(targetPlatformVersion);
+		return Version.isVersion(targetPlatformVersion);
 	}
 
 	public final String BUILD_GRADLE_FILE_NAME = "build.gradle";
