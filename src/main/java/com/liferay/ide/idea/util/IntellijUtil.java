@@ -19,6 +19,8 @@ import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.module.ModuleUtil;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.roots.ui.configuration.ProjectStructureConfigurable;
+import com.intellij.openapi.roots.ui.configuration.projectRoot.ModuleStructureConfigurable;
 import com.intellij.openapi.vfs.JarFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileSystem;
@@ -80,6 +82,25 @@ public class IntellijUtil {
 		}
 
 		return jarRoot;
+	}
+
+	public static Module getModule(Project project, String moduleName) {
+		Module module = null;
+
+		final ProjectStructureConfigurable fromConfigurable = ProjectStructureConfigurable.getInstance(project);
+
+		if (fromConfigurable != null) {
+			ModuleStructureConfigurable modulesConfig = fromConfigurable.getModulesConfig();
+
+			module = modulesConfig.getModule(moduleName);
+		}
+		else {
+			ModuleManager moduleManager = ModuleManager.getInstance(project);
+
+			module = moduleManager.findModuleByName(moduleName);
+		}
+
+		return module;
 	}
 
 	@Nullable

@@ -20,7 +20,6 @@ import com.intellij.ide.util.projectWizard.AbstractModuleBuilder;
 import com.intellij.ide.util.projectWizard.ProjectWizardUtil;
 import com.intellij.ide.util.projectWizard.WizardContext;
 import com.intellij.openapi.module.Module;
-import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
@@ -35,6 +34,7 @@ import com.liferay.ide.idea.core.WorkspaceConstants;
 import com.liferay.ide.idea.core.WorkspaceProvider;
 import com.liferay.ide.idea.ui.modules.ext.LiferayModuleExtBuilder;
 import com.liferay.ide.idea.ui.modules.springmvcportlet.SpringMVCPortletModuleBuilder;
+import com.liferay.ide.idea.util.IntellijUtil;
 import com.liferay.ide.idea.util.LiferayWorkspaceSupport;
 
 import java.io.File;
@@ -55,6 +55,7 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * @author Terry Jia
+ * @author Simon Jiang
  */
 public class LiferayModuleNameLocationComponent implements LiferayWorkspaceSupport {
 
@@ -271,11 +272,11 @@ public class LiferayModuleNameLocationComponent implements LiferayWorkspaceSuppo
 			return false;
 		}
 
+		_validateExistingModuleName();
+
 		if (!_validateModulePaths()) {
 			return false;
 		}
-
-		_validateExistingModuleName();
 
 		return true;
 	}
@@ -401,16 +402,14 @@ public class LiferayModuleNameLocationComponent implements LiferayWorkspaceSuppo
 			return;
 		}
 
-		String moduleName = _getModuleName();
+		final String moduleName = _getModuleName();
 
-		ModuleManager moduleManager = ModuleManager.getInstance(project);
-
-		Module module = moduleManager.findModuleByName(moduleName);
+		Module module = IntellijUtil.getModule(project, moduleName);
 
 		if (module != null) {
-			String msg = "Module \'" + moduleName + "\' already exists in project. Please specify another name.";
-
-			throw new ConfigurationException(msg);
+			throw new ConfigurationException(
+				"Module \'" + moduleName + "\' already exists in project. Please specify another name.",
+				"Module Name Error");
 		}
 	}
 
